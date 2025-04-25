@@ -49,7 +49,7 @@ impl<'a> Connector<'a> {
                 loop {
                     let msg = websocket.read().unwrap();
                     if writing {
-                        file_reciever::recieve_file(msg.clone(), &mut buffer);
+                        //file_reciever::recieve_file(msg.clone(), &mut buffer);
                     }
                     match msg.to_string().as_str() {
                         "file_transfer_start" => writing = true,

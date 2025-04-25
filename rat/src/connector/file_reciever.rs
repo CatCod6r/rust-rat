@@ -1,9 +1,14 @@
 use rand::distr::Alphanumeric;
 use rand::{rng, Rng};
 use std::fs::File;
-use std::io::{self, env, process::Command, Write};
+use std::{
+    env,
+    io::{self, Write},
+    process::Command,
+};
 use tungstenite::{connect, Message};
 
+/*
 pub fn recieve_file(message: Message, buffer: &mut Vec<u8>) {
     if message != "file_transfer_stop".into() {
         match u8::from_str_radix(&message.to_string(), 2) {
@@ -36,3 +41,4 @@ fn get_random_filename() -> String {
     s.push_str(".bin");
     s
 }
+*/
