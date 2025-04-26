@@ -1,9 +1,11 @@
 mod connector;
 
 use connector::Connector;
-const SOCKET_ADDRESS: &str = "ws://localhost:3012/socket";
+pub const SERVER: &str = "0.0.0.0:4000";
+const SOCKET_ADDRESS: &str = "ws://localhost:4000";
 
 fn main() {
-    let connector = Connector::new(SOCKET_ADDRESS, SOCKET_ADDRESS);
+    let mut connector = Connector::new(SOCKET_ADDRESS);
     connector.subscribe_for_updates();
+    //connector.start_searching_for_c2();
 }

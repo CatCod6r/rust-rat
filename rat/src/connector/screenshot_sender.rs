@@ -1,9 +1,9 @@
 use crate::Connector;
 use screenshots::{image::EncodableLayout, Screen};
 
-pub fn make_screenshot(socket_adr_client: &str, socket_adr_server: &str) {
+pub fn make_screenshot(socket_adr_server: &str) {
     let screens = Screen::all().unwrap();
-    let connector = Connector::new(socket_adr_client, socket_adr_server);
+    let connector = Connector::new(socket_adr_server);
     for screen in screens {
         let image = screen.capture().unwrap();
         image

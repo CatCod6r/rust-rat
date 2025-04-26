@@ -4,7 +4,7 @@ use std::env;
 
 fn main() {
     let connector = connector_server::ConnectorServer {
-        socket_addres: "ws://localhost:3012/socket",
+        socket_addres: "ws://0.0.0.0:4000/socket",
     };
     let args: Vec<String> = env::args().collect();
 
