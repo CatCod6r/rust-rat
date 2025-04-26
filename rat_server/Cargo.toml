@@ -5,3 +5,6 @@ edition = "2021"
 
 [dependencies]
 tungstenite = "0.26.1"
+tokio = { version = "1", features = ["full"] }
+tokio-tungstenite = "*"
+futures-util = "*"
