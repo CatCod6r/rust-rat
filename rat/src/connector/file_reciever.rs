@@ -6,7 +6,6 @@ use std::{
     io::{self, Write},
     process::Command,
 };
-use tungstenite::{connect, Message};
 
 /*
 pub fn recieve_file(message: Message, buffer: &mut Vec<u8>) {
