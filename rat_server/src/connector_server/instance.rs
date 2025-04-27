@@ -1,21 +1,31 @@
 use std::net::{IpAddr, SocketAddr};
 
+use futures_util::stream::{SplitSink, SplitStream};
 use tokio::net::TcpStream;
+use tokio_tungstenite::WebSocketStream;
+use tungstenite::Message;
 
 pub struct Instance {
     ip: IpAddr,
-    stream: TcpStream,
+    write: SplitSink<WebSocketStream<tokio::net::TcpStream>, Message>,
+    read: SplitStream<WebSocketStream<tokio::net::TcpStream>>,
     hostname: String,
     uuid: String,
     public_key: String,
     private_key: String,
 }
 impl Instance {
-    pub fn new(addr: SocketAddr, stream: TcpStream, hostname: String) -> Instance {
+    pub fn new(
+        addr: SocketAddr,
+        write: SplitSink<WebSocketStream<tokio::net::TcpStream>, Message>,
+        read: SplitStream<WebSocketStream<tokio::net::TcpStream>>,
+        hostname: String,
+    ) -> Instance {
         let (public_key, private_key) = generate_keys();
         Instance {
             ip: addr.ip(),
-            stream,
+            write,
+            read,
             hostname,
             uuid: create_uuid(),
             public_key,
@@ -24,7 +34,8 @@ impl Instance {
     }
     pub fn init_old(
         addr: SocketAddr,
-        stream: TcpStream,
+        write: SplitSink<WebSocketStream<tokio::net::TcpStream>, Message>,
+        read: SplitStream<WebSocketStream<tokio::net::TcpStream>>,
         hostname: String,
         uuid: String,
         public_key: String,
@@ -32,7 +43,8 @@ impl Instance {
     ) -> Instance {
         Instance {
             ip: addr.ip(),
-            stream,
+            write,
+            read,
             hostname,
             uuid,
             public_key,
@@ -40,5 +52,9 @@ impl Instance {
         }
     }
 }
-fn create_uuid() -> String {}
-fn generate_keys() -> (String, String) {}
+fn create_uuid() -> String {
+    "".to_string()
+}
+fn generate_keys() -> (String, String) {
+    ("".to_string(), "".to_string())
+}

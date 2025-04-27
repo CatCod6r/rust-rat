@@ -1,17 +1,28 @@
-use std::{thread, time::Duration};
+use std::{cell::RefCell, net::SocketAddr, rc::Rc};
 
-use futures_util::{stream::SplitSink, SinkExt, StreamExt};
+use futures_util::{
+    stream::{SplitSink, SplitStream},
+    StreamExt,
+};
+use instance::Instance;
+use json_parser::JsonParser;
 use tokio::net::{TcpListener, TcpStream};
 use tokio_tungstenite::WebSocketStream;
 use tungstenite::Message;
+
 mod instance;
+mod json_parser;
 
 pub struct ConnectorServer {
     pub socket_address: String,
+    pub instances: Rc<RefCell<Vec<Instance>>>,
 }
 impl ConnectorServer {
     pub fn new(socket_address: String) -> ConnectorServer {
-        ConnectorServer { socket_address }
+        ConnectorServer {
+            socket_address,
+            instances: Rc::new(RefCell::new(Vec::new())),
+        }
     }
     pub async fn run(&self) {
         // Create the event loop and TCP listener we'll accept connections on.
@@ -20,40 +31,60 @@ impl ConnectorServer {
         println!("Listening on: {}", &self.socket_address);
 
         while let Ok((stream, _)) = listener.accept().await {
-            tokio::spawn(accept_connection(stream));
+            let _ = &self.accept_connection(stream).await;
         }
     }
-}
-pub async fn accept_connection(stream: TcpStream) {
-    let addr = stream
-        .peer_addr()
-        .expect("connected streams should have a peer address");
-    let ws_stream = tokio_tungstenite::accept_async(stream)
-        .await
-        .expect("Error during the websocket handshake occurred");
-    println!("New WebSocket connection: {}", addr);
-    let (write, mut read) = ws_stream.split();
-    if let Some(message) = read.next().await {
-        println!("{}", message.unwrap());
-    }
-    //send_message_loop(write).await;
-    /*
-    read.try_filter(|msg| future::ready(msg.is_text() || msg.is_binary()))
-        .forward(write)
-        .await
-        .expect("Failed to forward messages")
-    */
-}
-/*
-pub async fn send_message_loop(
-    mut write: SplitSink<WebSocketStream<tokio::net::TcpStream>, Message>,
-) {
-    loop {
-        println!("trying to send");
-        if let Err(err) = write.send(Message::from("haiiiiiiii")).await {
-            println!("{err}");
+    pub async fn accept_connection(&self, stream: TcpStream) {
+        let addr = stream
+            .peer_addr()
+            .expect("connected streams should have a peer address");
+        let ws_stream = tokio_tungstenite::accept_async(stream)
+            .await
+            .expect("Error during the websocket handshake occurred");
+        println!("New WebSocket connection: {}", addr);
+
+        let (write, mut read) = ws_stream.split();
+        if let Some(message) = read.next().await {
+            let message_string = message.unwrap().to_string();
+            println!("{}", message_string);
+
+            //match our message type and then call creation of instance
+            if message_string.contains("ping") {
+                let vec: Vec<&str> = message_string.split("|").collect();
+                let hostname = vec[2];
+                let _ = &self.create_instance(addr, hostname.to_string(), write, read);
+            }
         }
-        thread::sleep(Duration::from_secs(3));
+    }
+
+    pub async fn create_instance(
+        &self,
+        addr: SocketAddr,
+        hostname: String,
+        write: SplitSink<WebSocketStream<tokio::net::TcpStream>, Message>,
+        read: SplitStream<WebSocketStream<tokio::net::TcpStream>>,
+    ) {
+        let json_parser = JsonParser::new(addr.ip().to_string(), hostname.clone());
+        if json_parser.contains_in_bd() {
+            //If we have entry for our "user" then just use those values to create a class
+            let uuid = json_parser.get_uuid();
+            let (public_key, private_key) = json_parser.get_keys();
+            let _ = &self.instances.borrow_mut().push(Instance::init_old(
+                addr,
+                write,
+                read,
+                hostname,
+                uuid,
+                public_key,
+                private_key,
+            ));
+        } else {
+            let _ = &self
+                .instances
+                .borrow_mut()
+                .push(Instance::new(addr, write, read, hostname));
+            //save new entry into json...
+        }
+        //Create uuid on the spot ig, same for public/private _keys
     }
 }
-*/
