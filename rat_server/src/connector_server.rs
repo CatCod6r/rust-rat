@@ -50,13 +50,15 @@ impl ConnectorServer {
 
             //match our message type and then call creation of instance
             if message_string.contains("ping") {
+                //message example: ping|hostname
                 let vec: Vec<&str> = message_string.split("|").collect();
-                let hostname = vec[2];
-                let _ = &self.create_instance(addr, hostname.to_string(), write, read);
+                let hostname = vec[1];
+                let _ = &self
+                    .create_instance(addr, hostname.to_string(), write, read)
+                    .await;
             }
         }
     }
-
     pub async fn create_instance(
         &self,
         addr: SocketAddr,
@@ -66,7 +68,6 @@ impl ConnectorServer {
     ) {
         let json_parser = JsonParser::new(addr.ip().to_string(), hostname.clone());
         if json_parser.contains_in_bd() {
-            //If we have entry for our "user" then just use those values to create a class
             let uuid = json_parser.get_uuid();
             let (public_key, private_key) = json_parser.get_keys();
             let _ = &self.instances.borrow_mut().push(Instance::init_old(
@@ -83,7 +84,7 @@ impl ConnectorServer {
                 .instances
                 .borrow_mut()
                 .push(Instance::new(addr, write, read, hostname));
-            //save new entry into json...
+            //save it in the json
         }
         //Create uuid on the spot ig, same for public/private _keys
     }

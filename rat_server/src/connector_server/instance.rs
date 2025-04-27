@@ -1,10 +1,11 @@
 use std::net::{IpAddr, SocketAddr};
 
 use futures_util::stream::{SplitSink, SplitStream};
-use tokio::net::TcpStream;
 use tokio_tungstenite::WebSocketStream;
 use tungstenite::Message;
 
+#[derive(Debug)]
+#[allow(dead_code)]
 pub struct Instance {
     ip: IpAddr,
     write: SplitSink<WebSocketStream<tokio::net::TcpStream>, Message>,

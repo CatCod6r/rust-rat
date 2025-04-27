@@ -1,7 +1,9 @@
+#![allow(dead_code)]
 pub struct JsonParser {
     ip: String,
     hostname: String,
 }
+
 impl JsonParser {
     pub fn new(ip: String, hostname: String) -> JsonParser {
         JsonParser { ip, hostname }
