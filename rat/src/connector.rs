@@ -7,9 +7,8 @@ use futures_util::SinkExt;
 use gethostname::gethostname;
 use tokio_tungstenite::{
     connect_async,
-    tungstenite::{handshake::client::Response, http::response, Message},
+    tungstenite::Message,
 };
-use url::Url;
 pub struct Connector<'a> {
     //Server address sends data to main server
     socket_addr_server: &'a str,

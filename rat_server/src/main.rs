@@ -1,12 +1,12 @@
-mod connector_server;
+use connector_server::ConnectorServer;
 
-use std::env;
+mod connector_server;
 
 #[tokio::main]
 async fn main() {
-    let connector = connector_server::ConnectorServer {
-        socket_addres: "ws://0.0.0.0:4000/socket",
-    };
+    let connector = ConnectorServer::new("0.0.0.0:4000".to_string());
+    //for some reason its not the socket but okay ig
+    //"ws://0.0.0.0:4000/socket
 
     //let args: Vec<String> = env::args().collect();
     connector.run().await;

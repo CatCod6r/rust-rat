@@ -6,7 +6,7 @@ const SOCKET_ADDRESS: &str = "ws://localhost:4000";
 
 #[tokio::main]
 async fn main() {
-    let mut connector = Connector::new(SOCKET_ADDRESS);
+    let connector = Connector::new(SOCKET_ADDRESS);
     //connector.subscribe_for_updates();
     connector.search_for_c2().await;
 }

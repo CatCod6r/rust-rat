@@ -1,11 +1,3 @@
-use rand::distr::Alphanumeric;
-use rand::{rng, Rng};
-use std::fs::File;
-use std::{
-    env,
-    io::{self, Write},
-    process::Command,
-};
 
 /*
 pub fn recieve_file(message: Message, buffer: &mut Vec<u8>) {
