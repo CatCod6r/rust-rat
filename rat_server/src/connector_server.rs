@@ -68,14 +68,12 @@ impl ConnectorServer {
     ) {
         let json_parser = JsonParser::new(addr.ip().to_string(), hostname.clone());
         if json_parser.contains_in_bd() {
-            let uuid = json_parser.get_uuid();
             let (public_key, private_key) = json_parser.get_keys();
             let _ = &self.instances.borrow_mut().push(Instance::init_old(
                 addr,
                 write,
                 read,
                 hostname,
-                uuid,
                 public_key,
                 private_key,
             ));

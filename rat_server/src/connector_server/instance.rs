@@ -11,7 +11,6 @@ pub struct Instance {
     write: SplitSink<WebSocketStream<tokio::net::TcpStream>, Message>,
     read: SplitStream<WebSocketStream<tokio::net::TcpStream>>,
     hostname: String,
-    uuid: String,
     public_key: String,
     private_key: String,
 }
@@ -28,7 +27,6 @@ impl Instance {
             write,
             read,
             hostname,
-            uuid: create_uuid(),
             public_key,
             private_key,
         }
@@ -38,7 +36,6 @@ impl Instance {
         write: SplitSink<WebSocketStream<tokio::net::TcpStream>, Message>,
         read: SplitStream<WebSocketStream<tokio::net::TcpStream>>,
         hostname: String,
-        uuid: String,
         public_key: String,
         private_key: String,
     ) -> Instance {
@@ -47,14 +44,10 @@ impl Instance {
             write,
             read,
             hostname,
-            uuid,
             public_key,
             private_key,
         }
     }
-}
-fn create_uuid() -> String {
-    "".to_string()
 }
 fn generate_keys() -> (String, String) {
     ("".to_string(), "".to_string())

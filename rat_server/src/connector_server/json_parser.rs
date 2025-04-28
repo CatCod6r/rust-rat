@@ -11,9 +11,6 @@ impl JsonParser {
     pub fn contains_in_bd(&self) -> bool {
         false
     }
-    pub fn get_uuid(&self) -> String {
-        "".to_string()
-    }
     pub fn get_keys(&self) -> (String, String) {
         ("".to_string(), "".to_string())
     }
