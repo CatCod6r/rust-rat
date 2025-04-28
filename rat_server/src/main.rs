@@ -2,6 +2,8 @@ use connector_server::ConnectorServer;
 
 mod connector_server;
 
+pub const USERS_DIRECTORY: &str = "users";
+
 #[tokio::main]
 async fn main() {
     let connector = ConnectorServer::new("0.0.0.0:4000".to_string());

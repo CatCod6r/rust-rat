@@ -78,10 +78,9 @@ impl ConnectorServer {
                 private_key,
             ));
         } else {
-            let _ = &self
-                .instances
-                .borrow_mut()
-                .push(Instance::new(addr, write, read, hostname));
+            let instance = Instance::new(addr, write, read, hostname);
+            json_parser.save_to_json();
+            let _ = &self.instances.borrow_mut().push(instance);
             //save it in the json
         }
         //Create uuid on the spot ig, same for public/private _keys

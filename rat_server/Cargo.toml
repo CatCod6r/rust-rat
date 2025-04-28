@@ -8,3 +8,4 @@ tungstenite = "0.26.1"
 tokio = { version = "1", features = ["full"] }
 tokio-tungstenite = "*"
 futures-util = "*"
+serde_json = "1.0"
