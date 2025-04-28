@@ -6,9 +6,14 @@ use futures_util::{
 };
 use instance::Instance;
 use json_parser::JsonParser;
-use tokio::net::{TcpListener, TcpStream};
+use tokio::{
+    fs::{self, OpenOptions},
+    net::{TcpListener, TcpStream},
+};
 use tokio_tungstenite::WebSocketStream;
 use tungstenite::Message;
+
+use crate::USERS_DIRECTORY;
 
 mod instance;
 mod json_parser;
@@ -42,7 +47,8 @@ impl ConnectorServer {
             .await
             .expect("Error during the websocket handshake occurred");
         println!("New WebSocket connection: {}", addr);
-
+        //create a path if not created yet
+        self.create_path().await;
         let (write, mut read) = ws_stream.split();
         if let Some(message) = read.next().await {
             let message_string = message.unwrap().to_string();
@@ -67,23 +73,34 @@ impl ConnectorServer {
         read: SplitStream<WebSocketStream<tokio::net::TcpStream>>,
     ) {
         let json_parser = JsonParser::new(addr.ip().to_string(), hostname.clone());
-        if let Some(path) = json_parser.await.contains_in_bd().await {
-            if let Some((public_key, private_key)) = json_parser.await.get_keys() {}
-            let _ = &self.instances.borrow_mut().push(Instance::init_old(
-                addr,
-                write,
-                read,
-                hostname,
-                public_key,
-                private_key,
-                path,
-            ));
+        if let Some(path) = json_parser.contains_in_bd().await {
+            if let Some((public_key, private_key)) = json_parser.get_keys().await {
+                let _ = &self.instances.borrow_mut().push(Instance::init_old(
+                    addr,
+                    write,
+                    read,
+                    hostname,
+                    public_key,
+                    private_key,
+                    path,
+                ));
+            }
         } else {
-            let path = json_parser.await.save_to_json();
-            let instance = Instance::new(addr, write, read, hostname, path);
+            let path = json_parser.save_to_json();
+            let instance = Instance::new(addr, write, read, hostname, path.await);
             let _ = &self.instances.borrow_mut().push(instance);
             //save it in the json
         }
         //Create uuid on the spot ig, same for public/private _keys
+    }
+    pub async fn create_path(&self) {
+        let path = format!("{}users.json", USERS_DIRECTORY);
+        let _ = fs::create_dir_all(USERS_DIRECTORY).await;
+        let _ = OpenOptions::new()
+            .create(true)
+            .write(true)
+            .truncate(true)
+            .open(&path)
+            .await;
     }
 }

@@ -13,18 +13,8 @@ pub struct JsonParser {
 }
 
 impl JsonParser {
-    pub async fn new(ip: String, hostname: String) -> JsonParser {
-        //create a path if not created yet
+    pub fn new(ip: String, hostname: String) -> JsonParser {
         let path = format!("{}users.json", USERS_DIRECTORY);
-        fs::create_dir_all(USERS_DIRECTORY).await.unwrap();
-        let _ = OpenOptions::new()
-            .create(true)
-            .write(true)
-            .truncate(true)
-            .open(&path)
-            .await
-            .unwrap();
-
         JsonParser { ip, hostname, path }
     }
 
@@ -32,7 +22,7 @@ impl JsonParser {
         let mut file = File::open(&self.path).await.unwrap();
 
         let mut file_content = "".to_string();
-        file.read_to_string(&mut file_content);
+        let _ = file.read_to_string(&mut file_content).await;
 
         let json_data: Value = serde_json::from_str(&file_content).unwrap();
 
@@ -54,13 +44,13 @@ impl JsonParser {
         let mut file = File::open(&self.path).await.unwrap();
 
         let mut file_content = "".to_string();
-        file.read_to_string(&mut file_content);
+        let _ = file.read_to_string(&mut file_content).await;
 
         let json_data: Value = serde_json::from_str(&file_content).unwrap();
         for data in json_data.as_object().unwrap() {
             match self.contains_in_bd().await {
                 Some(name) => {
-                    if data.0.to_owned() == name {
+                    if data.0 == &name {
                         return Some((
                             data.1["public_key"].to_string(),
                             data.1["private_key"].to_string(),
@@ -72,14 +62,14 @@ impl JsonParser {
                 }
             }
         }
-        return None;
+        None
     }
 
     pub async fn save_to_json(&self) -> String {
         let mut file = File::open(&self.path).await.unwrap();
 
         let mut file_content = "".to_string();
-        file.read_to_string(&mut file_content);
+        let _ = file.read_to_string(&mut file_content).await;
 
         let mut json_data: Value = serde_json::from_str(&file_content).unwrap();
 
