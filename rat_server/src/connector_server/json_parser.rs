@@ -41,7 +41,7 @@ impl JsonParser {
                 if data.1["ip"].as_str().unwrap() == self.ip
                     && data.1["hostname"].as_str().unwrap() == self.hostname
                 {
-                    return Ok((data.0.to_owned()));
+                    return Some(data.0.to_owned());
                 } else {
                     return None;
                 }
@@ -50,16 +50,32 @@ impl JsonParser {
         None
     }
 
-    pub async fn get_keys(&self) -> (String, String) {
+    pub async fn get_keys(&self) -> Option<(String, String)> {
         let mut file = File::open(&self.path).await.unwrap();
 
         let mut file_content = "".to_string();
         file.read_to_string(&mut file_content);
 
         let json_data: Value = serde_json::from_str(&file_content).unwrap();
+        for data in json_data.as_object().unwrap() {
+            match self.contains_in_bd().await {
+                Some(name) => {
+                    if data.0.to_owned() == name {
+                        return Some((
+                            data.1["public_key"].to_string(),
+                            data.1["private_key"].to_string(),
+                        ));
+                    }
+                }
+                None => {
+                    return None;
+                }
+            }
+        }
+        return None;
     }
 
-    pub async fn save_to_json(&self) {
+    pub async fn save_to_json(&self) -> String {
         let mut file = File::open(&self.path).await.unwrap();
 
         let mut file_content = "".to_string();
@@ -76,12 +92,12 @@ impl JsonParser {
         let new_name = format!("name{}", next_index);
 
         // Add the new element to the JSON
-        json_data[new_name] = json!({
+        json_data[&new_name] = json!({
             "ip": &self.ip,
             "hostname": &self.hostname,
             "public_key": "",
             "private_key": "",
-            "folder": new_name,
+            "folder": &new_name,
         });
 
         // Serialize the JSON data back to a string
@@ -90,5 +106,7 @@ impl JsonParser {
         // Write the updated JSON back to the file
 
         file.write_all(updated_content.as_bytes()).await.unwrap();
+
+        new_name
     }
 }

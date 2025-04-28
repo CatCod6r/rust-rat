@@ -13,6 +13,7 @@ pub struct Instance {
     hostname: String,
     public_key: String,
     private_key: String,
+    path: String,
 }
 impl Instance {
     pub fn new(
@@ -20,6 +21,7 @@ impl Instance {
         write: SplitSink<WebSocketStream<tokio::net::TcpStream>, Message>,
         read: SplitStream<WebSocketStream<tokio::net::TcpStream>>,
         hostname: String,
+        path: String,
     ) -> Instance {
         let (public_key, private_key) = generate_keys();
         Instance {
@@ -29,6 +31,7 @@ impl Instance {
             hostname,
             public_key,
             private_key,
+            path,
         }
     }
     pub fn init_old(
@@ -38,6 +41,7 @@ impl Instance {
         hostname: String,
         public_key: String,
         private_key: String,
+        path: String,
     ) -> Instance {
         Instance {
             ip: addr.ip(),
@@ -46,6 +50,7 @@ impl Instance {
             hostname,
             public_key,
             private_key,
+            path,
         }
     }
 }

@@ -67,8 +67,8 @@ impl ConnectorServer {
         read: SplitStream<WebSocketStream<tokio::net::TcpStream>>,
     ) {
         let json_parser = JsonParser::new(addr.ip().to_string(), hostname.clone());
-        if json_parser.contains_in_bd() {
-            let (public_key, private_key) = json_parser.get_keys();
+        if let Some(path) = json_parser.await.contains_in_bd().await {
+            if let Some((public_key, private_key)) = json_parser.await.get_keys() {}
             let _ = &self.instances.borrow_mut().push(Instance::init_old(
                 addr,
                 write,
@@ -76,10 +76,11 @@ impl ConnectorServer {
                 hostname,
                 public_key,
                 private_key,
+                path,
             ));
         } else {
-            let instance = Instance::new(addr, write, read, hostname);
-            json_parser.save_to_json();
+            let path = json_parser.await.save_to_json();
+            let instance = Instance::new(addr, write, read, hostname, path);
             let _ = &self.instances.borrow_mut().push(instance);
             //save it in the json
         }
