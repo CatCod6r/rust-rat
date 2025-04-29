@@ -53,6 +53,9 @@ impl Instance {
             path,
         }
     }
+    pub fn get_ip(&self) -> IpAddr {
+        self.ip
+    }
 }
 fn generate_keys() -> (String, String) {
     ("".to_string(), "".to_string())

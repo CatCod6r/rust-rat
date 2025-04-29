@@ -15,8 +15,8 @@ use tungstenite::Message;
 
 use crate::USERS_DIRECTORY;
 
-mod instance;
-mod json_parser;
+pub mod instance;
+pub mod json_parser;
 
 pub struct ConnectorServer {
     pub socket_address: String,
@@ -29,12 +29,16 @@ impl ConnectorServer {
             instances: Rc::new(RefCell::new(Vec::new())),
         }
     }
+    pub fn get_istances(&self) -> &Rc<RefCell<Vec<Instance>>> {
+        &self.instances
+    }
     pub async fn run(&self) {
         // Create the event loop and TCP listener we'll accept connections on.
         let try_socket = TcpListener::bind(&self.socket_address).await;
         let listener = try_socket.expect("Failed to bind");
         println!("Listening on: {}", &self.socket_address);
-
+        //create a path if not created yet
+        self.create_path().await;
         while let Ok((stream, _)) = listener.accept().await {
             let _ = &self.accept_connection(stream).await;
         }
@@ -43,13 +47,16 @@ impl ConnectorServer {
         let addr = stream
             .peer_addr()
             .expect("connected streams should have a peer address");
+
         let ws_stream = tokio_tungstenite::accept_async(stream)
             .await
             .expect("Error during the websocket handshake occurred");
+
         println!("New WebSocket connection: {}", addr);
-        //create a path if not created yet
-        self.create_path().await;
+
         let (write, mut read) = ws_stream.split();
+
+        //Start listening for messages
         if let Some(message) = read.next().await {
             let message_string = message.unwrap().to_string();
             println!("{}", message_string);
@@ -94,13 +101,14 @@ impl ConnectorServer {
         //Create uuid on the spot ig, same for public/private _keys
     }
     pub async fn create_path(&self) {
-        let path = format!("{}users.json", USERS_DIRECTORY);
-        let _ = fs::create_dir_all(USERS_DIRECTORY).await;
-        let _ = OpenOptions::new()
+        let path = format!("{}/users.json", USERS_DIRECTORY);
+        fs::create_dir_all(USERS_DIRECTORY).await.unwrap();
+        OpenOptions::new()
             .create(true)
             .write(true)
             .truncate(true)
             .open(&path)
-            .await;
+            .await
+            .unwrap();
     }
 }

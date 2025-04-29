@@ -14,7 +14,7 @@ pub struct JsonParser {
 
 impl JsonParser {
     pub fn new(ip: String, hostname: String) -> JsonParser {
-        let path = format!("{}users.json", USERS_DIRECTORY);
+        let path = format!("{}/users.json", USERS_DIRECTORY);
         JsonParser { ip, hostname, path }
     }
 
@@ -87,14 +87,16 @@ impl JsonParser {
         new_name
     }
     async fn get_json_data_as_object(&self) -> Map<String, Value> {
-        let mut file = match File::open(&self.path).await {
-            Ok(file) => file,
-            Err(error) => panic!("Problem opening the file: {error:?}"),
+        /*
+                let mut file = match File::open(&self.path).await {
+                    Ok(file) => file,
+                    Err(error) => panic!("Problem opening the file: {error:?}"),
+                };
+        */
+        let file_content = match tokio::fs::read_to_string(&self.path).await {
+            Ok(content) => content,
+            Err(_) => String::from("{}"),
         };
-        let mut file_content = "".to_string();
-        if let Err(error) = file.read_to_string(&mut file_content).await {
-            println!("Problem reading file to string {error:?}");
-        }
         let json_data: Value = serde_json::from_str(&file_content).unwrap();
         let data = json_data.as_object().unwrap();
         data.clone()
