@@ -1,6 +1,7 @@
 use std::time::Duration;
 
-use connector_server::{instance::Instance, ConnectorServer};
+use connector_server::ConnectorServer;
+use tokio::join;
 
 mod connector_server;
 
@@ -9,12 +10,12 @@ pub const USERS_DIRECTORY: &str = "users";
 #[tokio::main]
 async fn main() {
     let connector = ConnectorServer::new("0.0.0.0:4000".to_string());
-    connector.run().await;
-    start_cli(connector).await;
+    join!(connector.run(), start_cli(&connector));
 }
-async fn start_cli(connector: ConnectorServer) {
+async fn start_cli(connector: &ConnectorServer) {
     let mut last_ip = String::new();
     loop {
+        println!("haiiii");
         let instances = connector.get_istances().await.take();
         if let Some(last_instance) = instances.last() {
             let current_ip = last_instance.get_ip().to_string();

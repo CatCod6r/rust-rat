@@ -1,7 +1,7 @@
 use serde_json::{json, Map, Value};
 use tokio::{
-    fs::{self, File, OpenOptions},
-    io::{AsyncReadExt, AsyncWriteExt},
+    fs::{OpenOptions},
+    io::AsyncWriteExt,
 };
 
 use crate::USERS_DIRECTORY;

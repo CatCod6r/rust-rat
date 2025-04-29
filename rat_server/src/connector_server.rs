@@ -40,7 +40,7 @@ impl ConnectorServer {
         //create a path if not created yet
         self.create_path().await;
         while let Ok((stream, _)) = listener.accept().await {
-            let _ = &self.accept_connection(stream).await;
+            self.accept_connection(stream).await;
         }
     }
     pub async fn accept_connection(&self, stream: TcpStream) {
@@ -66,8 +66,7 @@ impl ConnectorServer {
                 //message example: ping|hostname
                 let vec: Vec<&str> = message_string.split("|").collect();
                 let hostname = vec[1];
-                let _ = &self
-                    .create_instance(addr, hostname.to_string(), write, read)
+                self.create_instance(addr, hostname.to_string(), write, read)
                     .await;
             }
         }
@@ -82,7 +81,7 @@ impl ConnectorServer {
         let json_parser = JsonParser::new(addr.ip().to_string(), hostname.clone());
         if let Some(path) = json_parser.contains_in_bd().await {
             if let Some((public_key, private_key)) = json_parser.get_keys().await {
-                let _ = &self.instances.borrow_mut().push(Instance::init_old(
+                self.instances.borrow_mut().push(Instance::init_old(
                     addr,
                     write,
                     read,
@@ -93,12 +92,11 @@ impl ConnectorServer {
                 ));
             }
         } else {
+            //save it in the json
             let path = json_parser.save_to_json();
             let instance = Instance::new(addr, write, read, hostname, path.await);
-            let _ = &self.instances.borrow_mut().push(instance);
-            //save it in the json
+            self.instances.borrow_mut().push(instance);
         }
-        //Create uuid on the spot ig, same for public/private _keys
     }
     pub async fn create_path(&self) {
         let path = format!("{}/users.json", USERS_DIRECTORY);
