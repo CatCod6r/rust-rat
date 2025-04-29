@@ -53,21 +53,23 @@ impl JsonParser {
     }
 
     pub async fn save_to_json(&self) -> String {
-        let mut file = File::open(&self.path).await.unwrap();
-
-        let mut file_content = "".to_string();
-        let _ = file.read_to_string(&mut file_content).await;
-
+        let file_content = match tokio::fs::read_to_string(&self.path).await {
+            Ok(content) => {
+                if content.is_empty() {
+                    String::from("{}")
+                } else {
+                    content
+                }
+            }
+            Err(_) => String::from("{}"),
+        };
         let mut json_data: Value = serde_json::from_str(&file_content).unwrap();
-
-        //what next users name should be
+        //What next users name should be
         let next_index = match json_data.as_object() {
             Some(obj) => obj.keys().filter(|key| key.starts_with("name")).count() + 1,
             None => 1,
         };
-
         let new_name = format!("name{}", next_index);
-
         // Add the new element to the JSON
         json_data[&new_name] = json!({
             "ip": &self.ip,
@@ -76,25 +78,27 @@ impl JsonParser {
             "private_key": "",
             "folder": &new_name,
         });
-
         // Serialize the JSON data back to a string
         let updated_content = serde_json::to_string_pretty(&json_data).unwrap();
-
         // Write the updated JSON back to the file
-
+        let mut file = OpenOptions::new()
+            .write(true)
+            .truncate(true)
+            .open(&self.path)
+            .await
+            .unwrap();
         file.write_all(updated_content.as_bytes()).await.unwrap();
-
         new_name
     }
     async fn get_json_data_as_object(&self) -> Map<String, Value> {
-        /*
-                let mut file = match File::open(&self.path).await {
-                    Ok(file) => file,
-                    Err(error) => panic!("Problem opening the file: {error:?}"),
-                };
-        */
         let file_content = match tokio::fs::read_to_string(&self.path).await {
-            Ok(content) => content,
+            Ok(content) => {
+                if content.is_empty() {
+                    String::from("{}")
+                } else {
+                    content
+                }
+            }
             Err(_) => String::from("{}"),
         };
         let json_data: Value = serde_json::from_str(&file_content).unwrap();

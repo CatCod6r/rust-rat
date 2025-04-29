@@ -29,7 +29,7 @@ impl ConnectorServer {
             instances: Rc::new(RefCell::new(Vec::new())),
         }
     }
-    pub fn get_istances(&self) -> &Rc<RefCell<Vec<Instance>>> {
+    pub async fn get_istances(&self) -> &Rc<RefCell<Vec<Instance>>> {
         &self.instances
     }
     pub async fn run(&self) {
