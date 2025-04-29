@@ -1,4 +1,4 @@
-use serde_json::{json, Value};
+use serde_json::{json, Map, Value};
 use tokio::{
     fs::{self, File, OpenOptions},
     io::{AsyncReadExt, AsyncWriteExt},
@@ -19,14 +19,7 @@ impl JsonParser {
     }
 
     pub async fn contains_in_bd(&self) -> Option<String> {
-        let mut file = File::open(&self.path).await.unwrap();
-
-        let mut file_content = "".to_string();
-        let _ = file.read_to_string(&mut file_content).await;
-
-        let json_data: Value = serde_json::from_str(&file_content).unwrap();
-
-        for data in json_data.as_object().unwrap() {
+        for data in &self.get_json_data_as_object().await {
             if data.0.starts_with("name") {
                 if data.1["ip"].as_str().unwrap() == self.ip
                     && data.1["hostname"].as_str().unwrap() == self.hostname
@@ -41,13 +34,7 @@ impl JsonParser {
     }
 
     pub async fn get_keys(&self) -> Option<(String, String)> {
-        let mut file = File::open(&self.path).await.unwrap();
-
-        let mut file_content = "".to_string();
-        let _ = file.read_to_string(&mut file_content).await;
-
-        let json_data: Value = serde_json::from_str(&file_content).unwrap();
-        for data in json_data.as_object().unwrap() {
+        for data in &self.get_json_data_as_object().await {
             match self.contains_in_bd().await {
                 Some(name) => {
                     if data.0 == &name {
@@ -98,5 +85,18 @@ impl JsonParser {
         file.write_all(updated_content.as_bytes()).await.unwrap();
 
         new_name
+    }
+    async fn get_json_data_as_object(&self) -> Map<String, Value> {
+        let mut file = match File::open(&self.path).await {
+            Ok(file) => file,
+            Err(error) => panic!("Problem opening the file: {error:?}"),
+        };
+        let mut file_content = "".to_string();
+        if let Err(error) = file.read_to_string(&mut file_content).await {
+            println!("Problem reading file to string {error:?}");
+        }
+        let json_data: Value = serde_json::from_str(&file_content).unwrap();
+        let data = json_data.as_object().unwrap();
+        data.clone()
     }
 }
