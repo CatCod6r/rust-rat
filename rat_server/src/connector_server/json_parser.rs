@@ -101,17 +101,21 @@ impl JsonParser {
         }
         None
     }
-    pub async fn set_keys(&self, public_key: String, private_key: String) {
-        for data in &self.get_json_data_as_object().await {
-            match self.contains_in_bd().await {
-                Some(name) => {
-                    if data.0 == &name {
-                        data.1["public_key"] = public_key;
-                        data.1["private_key"] = private_key;
-                    }
-                }
-                None => {}
+    pub async fn set_keys(&self, (public_key, private_key): (String, String), path: String) {
+        let json_data = &mut self.get_json_data_as_object().await;
+        if let Some(entry) = json_data.get_mut(path.as_str()) {
+            if let Some(obj) = entry.as_object_mut() {
+                obj.insert("public_key".to_string(), json!(public_key));
+                obj.insert("private_key".to_string(), json!(private_key));
             }
         }
+        let updated_content = serde_json::to_string_pretty(&json_data).unwrap();
+        let mut file = OpenOptions::new()
+            .write(true)
+            .truncate(true)
+            .open(&self.path)
+            .await
+            .unwrap();
+        file.write_all(updated_content.as_bytes()).await.unwrap();
     }
 }

@@ -76,7 +76,7 @@ impl ConnectorServer {
         &self,
         addr: SocketAddr,
         hostname: String,
-        mut write: SplitSink<WebSocketStream<tokio::net::TcpStream>, Message>,
+        write: SplitSink<WebSocketStream<tokio::net::TcpStream>, Message>,
         read: SplitStream<WebSocketStream<tokio::net::TcpStream>>,
     ) {
         let json_parser = JsonParser::new(addr.ip().to_string(), hostname.clone());
@@ -94,9 +94,12 @@ impl ConnectorServer {
             }
         } else {
             //save it in the json
-            let path = json_parser.save_to_json();
-            let mut instance = Instance::new(addr, write, read, hostname, path.await);
-            json_parser.set_keys(instance.generate_keys().await);
+            let path = json_parser.save_to_json().await;
+            let mut instance = Instance::new(addr, write, read, hostname, path.clone());
+            //Generate keys and send them to json
+            json_parser
+                .set_keys(instance.generate_keys().await, path)
+                .await;
             self.instances.borrow_mut().push(instance);
         }
     }

@@ -4,6 +4,7 @@ use futures_util::{
     stream::{SplitSink, SplitStream},
     SinkExt, StreamExt,
 };
+use serde_json::to_string;
 use tokio_tungstenite::WebSocketStream;
 use tungstenite::Message;
 
@@ -21,8 +22,8 @@ pub struct Instance {
 impl Instance {
     pub fn new(
         addr: SocketAddr,
-        mut write: SplitSink<WebSocketStream<tokio::net::TcpStream>, Message>,
-        mut read: SplitStream<WebSocketStream<tokio::net::TcpStream>>,
+        write: SplitSink<WebSocketStream<tokio::net::TcpStream>, Message>,
+        read: SplitStream<WebSocketStream<tokio::net::TcpStream>>,
         hostname: String,
         path: String,
     ) -> Instance {
@@ -71,15 +72,18 @@ impl Instance {
         let mut public_key = String::from("");
         let mut private_key = String::from("");
         if let Some(message) = self.read.next().await {
+            let my_public_key;
             public_key = message.unwrap().to_string();
             //Generate private key and also assign it
-            private_key = self.generate_private_key();
+            (my_public_key, private_key) = self.generate_my_keys();
             self.public_key = public_key.clone();
             self.private_key = private_key.clone();
+            //make
+            self.write.send(Message::from(my_public_key)).await.unwrap();
         }
         (public_key, private_key)
     }
-    fn generate_private_key(&self) -> String {
-        "".to_string()
+    fn generate_my_keys(&self) -> (String, String) {
+        ("public".to_string(), "private".to_string())
     }
 }
