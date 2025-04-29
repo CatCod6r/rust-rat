@@ -1,8 +1,5 @@
 use serde_json::{json, Map, Value};
-use tokio::{
-    fs::{OpenOptions},
-    io::AsyncWriteExt,
-};
+use tokio::{fs::OpenOptions, io::AsyncWriteExt};
 
 use crate::USERS_DIRECTORY;
 
@@ -26,25 +23,6 @@ impl JsonParser {
                 {
                     return Some(data.0.to_owned());
                 } else {
-                    return None;
-                }
-            }
-        }
-        None
-    }
-
-    pub async fn get_keys(&self) -> Option<(String, String)> {
-        for data in &self.get_json_data_as_object().await {
-            match self.contains_in_bd().await {
-                Some(name) => {
-                    if data.0 == &name {
-                        return Some((
-                            data.1["public_key"].to_string(),
-                            data.1["private_key"].to_string(),
-                        ));
-                    }
-                }
-                None => {
                     return None;
                 }
             }
@@ -104,5 +82,36 @@ impl JsonParser {
         let json_data: Value = serde_json::from_str(&file_content).unwrap();
         let data = json_data.as_object().unwrap();
         data.clone()
+    }
+    pub async fn get_keys(&self) -> Option<(String, String)> {
+        for data in &self.get_json_data_as_object().await {
+            match self.contains_in_bd().await {
+                Some(name) => {
+                    if data.0 == &name {
+                        return Some((
+                            data.1["public_key"].to_string(),
+                            data.1["private_key"].to_string(),
+                        ));
+                    }
+                }
+                None => {
+                    return None;
+                }
+            }
+        }
+        None
+    }
+    pub async fn set_keys(&self, public_key: String, private_key: String) {
+        for data in &self.get_json_data_as_object().await {
+            match self.contains_in_bd().await {
+                Some(name) => {
+                    if data.0 == &name {
+                        data.1["public_key"] = public_key;
+                        data.1["private_key"] = private_key;
+                    }
+                }
+                None => {}
+            }
+        }
     }
 }
