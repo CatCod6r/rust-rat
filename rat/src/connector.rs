@@ -13,6 +13,7 @@ use rsa::{
     pkcs8::DecodePublicKey,
     Pkcs1v15Encrypt, RsaPrivateKey, RsaPublicKey,
 };
+use screenshots::image::EncodableLayout;
 use tokio_tungstenite::{
     connect_async,
     tungstenite::{handshake::client::Response, Message},
@@ -107,17 +108,22 @@ impl Connector {
                 .await
                 .unwrap();
 
-            if let Some(message) = self.read.as_mut().unwrap().next().await {
-                self.public_key = Some(
-                    RsaPublicKey::from_public_key_pem(&String::from_utf8_lossy(
-                        &self
-                            .private_key
+            let mut server_public_key: Vec<u8> = Vec::new();
+            for _ in 0..2 {
+                if let Some(message) = self.read.as_mut().unwrap().next().await {
+                    server_public_key.extend(
+                        self.private_key
                             .decrypt(Pkcs1v15Encrypt, message.unwrap().to_string().as_bytes())
                             .unwrap(),
-                    ))
-                    .unwrap(),
-                );
+                    );
+                }
             }
+            self.public_key = Some(
+                RsaPublicKey::from_public_key_pem(&String::from_utf8_lossy(
+                    server_public_key.as_slice(),
+                ))
+                .unwrap(),
+            );
             println!(
                 "{}",
                 self.public_key
