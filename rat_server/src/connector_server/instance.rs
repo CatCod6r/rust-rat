@@ -111,18 +111,21 @@ impl Instance {
                     .to_public_key()
                     .to_pkcs1_pem(rsa::pkcs8::LineEnding::LF)
                     .unwrap()
-                    .as_bytes()
-                    .to_vec(),
+                    .as_bytes(),
             );
             for index in 0..2 {
                 if index == 0 {
                     self.write
-                        .send(Message::from(encrypted_key.0[..].to_vec()))
+                        .send(Message::from(hex::encode(
+                            std::str::from_utf8(&encrypted_key.0[..]).unwrap(),
+                        )))
                         .await
                         .unwrap();
                 } else {
                     self.write
-                        .send(Message::from(encrypted_key.1[..].to_vec()))
+                        .send(Message::from(hex::encode(
+                            std::str::from_utf8(&encrypted_key.1[..]).unwrap(),
+                        )))
                         .await
                         .unwrap();
                 }
@@ -136,7 +139,7 @@ impl Instance {
         let bits = 2048;
         RsaPrivateKey::new(&mut rng, bits).expect("failed to generate a key")
     }
-    fn encrypt(&self, public_key: &RsaPublicKey, data_to_enc: Vec<u8>) -> (Vec<u8>, Vec<u8>) {
+    fn encrypt(&self, public_key: &RsaPublicKey, data_to_enc: &[u8]) -> (Vec<u8>, Vec<u8>) {
         let mut rng = rand::thread_rng();
         let mid = data_to_enc.len() / 2;
         (

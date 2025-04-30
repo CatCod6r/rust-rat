@@ -113,7 +113,12 @@ impl Connector {
                 if let Some(message) = self.read.as_mut().unwrap().next().await {
                     server_public_key.extend(
                         self.private_key
-                            .decrypt(Pkcs1v15Encrypt, message.unwrap().to_string().as_bytes())
+                            .decrypt(
+                                Pkcs1v15Encrypt,
+                                hex::decode(message.unwrap().to_string())
+                                    .unwrap()
+                                    .as_bytes(),
+                            )
                             .unwrap(),
                     );
                 }
