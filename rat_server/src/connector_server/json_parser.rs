@@ -1,3 +1,7 @@
+use rsa::{
+    pkcs1::{DecodeRsaPrivateKey, DecodeRsaPublicKey},
+    RsaPrivateKey, RsaPublicKey,
+};
 use serde_json::{json, Map, Value};
 use tokio::{fs::OpenOptions, io::AsyncWriteExt};
 
@@ -83,7 +87,7 @@ impl JsonParser {
         let data = json_data.as_object().unwrap();
         data.clone()
     }
-    pub async fn get_keys(&self) -> Option<(String, String)> {
+    pub async fn get_keys_string(&self) -> Option<(String, String)> {
         for data in &self.get_json_data_as_object().await {
             match self.contains_in_bd().await {
                 Some(name) => {
@@ -100,6 +104,16 @@ impl JsonParser {
             }
         }
         None
+    }
+    pub async fn get_keys(&self) -> Option<(RsaPublicKey, RsaPrivateKey)> {
+        if let Some((public_key, private_key)) = &self.get_keys_string().await {
+            Some((
+                RsaPublicKey::from_pkcs1_pem(public_key.as_str()).unwrap(),
+                RsaPrivateKey::from_pkcs1_pem(private_key.as_str()).unwrap(),
+            ))
+        } else {
+            None
+        }
     }
     pub async fn set_keys(&self, (public_key, private_key): (String, String), path: String) {
         let json_data = &mut self.get_json_data_as_object().await;

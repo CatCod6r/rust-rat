@@ -2,7 +2,7 @@ use std::{cell::RefCell, net::SocketAddr, rc::Rc};
 
 use futures_util::{
     stream::{SplitSink, SplitStream},
-    SinkExt, StreamExt,
+    StreamExt,
 };
 use instance::Instance;
 use json_parser::JsonParser;
@@ -87,8 +87,8 @@ impl ConnectorServer {
                     write,
                     read,
                     hostname,
-                    public_key,
-                    private_key,
+                    Some(public_key),
+                    Some(private_key),
                     path,
                 ));
             }
