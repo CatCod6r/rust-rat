@@ -37,7 +37,7 @@ async fn start_cli(connector: &ConnectorServer) {
                 //Updating last_ip to check for changes
                 last_ip = current_ip;
             }
-            tokio::time::sleep(Duration::from_secs(5)).await;
         }
+        tokio::time::sleep(Duration::from_secs(5)).await;
     }
 }
