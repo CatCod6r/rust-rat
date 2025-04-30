@@ -96,6 +96,14 @@ impl Instance {
             self.set_public_key(RsaPublicKey::from_pkcs1_pem(public_key.as_str()).unwrap());
             self.set_private_key(private_key.to_owned());
 
+            println!(
+                "{}",
+                self.public_key
+                    .clone()
+                    .unwrap()
+                    .to_pkcs1_pem(rsa::pkcs8::LineEnding::LF)
+                    .unwrap()
+            );
             //Send my public key encrypted by users public key to user and forget about it
             let encrypted_key = &self.encrypt(
                 &self.public_key.clone().unwrap(),
