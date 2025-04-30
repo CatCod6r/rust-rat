@@ -1,5 +1,7 @@
+/*
 use crate::Connector;
 use screenshots::{image::EncodableLayout, Screen};
+
 
 pub fn make_screenshot(socket_adr_server: &str) {
     let screens = Screen::all().unwrap();
@@ -16,3 +18,4 @@ pub fn make_screenshot(socket_adr_server: &str) {
         connector.send_data("image_transfer_stop");
     }
 }
+*/

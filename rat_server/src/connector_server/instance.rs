@@ -74,9 +74,13 @@ impl Instance {
     pub fn set_private_key(&mut self, private_key: RsaPrivateKey) {
         self.private_key = Some(private_key);
     }
+    pub async fn send_message(&mut self, message: &str) {
+        //make this encrypt every time when message sent
+        self.write.send(Message::from(message)).await.unwrap();
+    }
     pub async fn generate_keys(&mut self) -> (String, String) {
         //Send pong for rat to generate a public key
-        self.write.send(Message::from("pong")).await.unwrap();
+        self.send_message("pong").await;
 
         let mut public_key = String::from("");
         let mut private_key_string = String::from("");
