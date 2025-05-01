@@ -23,6 +23,7 @@ impl ServerCli<'_> {
                 let current_ip = last_instance.get_ip().to_string();
                 //Checking for changes
                 if current_ip != last_ip {
+                    println!("Current users:");
                     for index in 0..instances.len() {
                         let instance: &Instance = instances.get(index).unwrap();
                         println!(
@@ -34,16 +35,30 @@ impl ServerCli<'_> {
                         );
                     }
                     println!("Input the number of user:");
-                    let chosen_number = self.handle_user_input().await.parse::<usize>().unwrap();
-                    let chosen_instance = &mut instances[chosen_number - 1];
+                    let chosen_number: u32 = loop {
+                        let input = self.handle_user_input().await.trim().to_string();
+                        match input.parse() {
+                            Ok(num) => break num,
+                            Err(_) => println!("Invalid input. Please enter a valid number."),
+                        }
+                    };
+                    let chosen_instance = &mut instances[(chosen_number - 1) as usize];
                     println!("What command do you choose?");
                     for index in 0..FEATURES.len() {
-                        print!("[{}] {}", index + 1, FEATURES[index]);
+                        println!("[{}] {}", index + 1, FEATURES[index]);
                     }
-                    let chosen_command = self.handle_user_input().await.parse::<usize>().unwrap();
+                    let chosen_command: u32 = loop {
+                        let input = self.handle_user_input().await.trim().to_string();
+                        match input.parse() {
+                            Ok(num) => break num,
+                            Err(_) => println!("Invalid input. Please enter a valid number."),
+                        }
+                    };
                     if chosen_instance.is_keys_init() {
                         chosen_instance
-                            .send_chosen_command(FEATURES[chosen_command - 1].to_string())
+                            .send_encrypted_message(
+                                FEATURES[(chosen_command - 1) as usize].to_string().as_str(),
+                            )
                             .await;
                     }
                     last_ip = current_ip;

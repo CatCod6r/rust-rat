@@ -94,7 +94,7 @@ impl Instance {
     pub async fn send_encrypted_message(&mut self, message: &str) {
         let encrypted_data = self.encrypt_data(None, message.as_bytes());
         self.write
-            .send(Message::from(encrypted_data))
+            .send(Message::from(hex::encode(encrypted_data)))
             .await
             .unwrap();
     }
