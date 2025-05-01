@@ -129,11 +129,21 @@ impl Connector {
                 Some(RsaPublicKey::from_pkcs1_pem(server_public_key.as_str()).unwrap());
 
             println!("rsa init sequence complete");
-            //Generate rsa keys and send them
         }
     }
-    pub async fn send_encrypted_data(&self, data: String) {}
-    pub fn subscribe_for_updates(&self) {}
+    pub async fn encrypt_data(&self, data: String) -> Vec<u8> {
+        let mut rng = rand::thread_rng();
+        self.public_key
+            .clone()
+            .unwrap()
+            .encrypt(&mut rng, Pkcs1v15Encrypt, data.as_bytes())
+            .unwrap()
+            .to_vec()
+    }
+    pub fn decrypt_data(&self, data: &[u8]) -> String {
+        let decrypted_data = self.private_key.decrypt(Pkcs1v15Encrypt, &data).unwrap();
+        String::from_utf8(decrypted_data).unwrap()
+    }
 }
 pub fn generate_private_key() -> RsaPrivateKey {
     let mut rng = rand::thread_rng();

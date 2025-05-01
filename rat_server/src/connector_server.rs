@@ -97,9 +97,7 @@ impl ConnectorServer {
             let path = json_parser.save_to_json().await;
             let mut instance = Instance::new(addr, write, read, hostname, path.clone());
             //Generate keys and send them to json
-            json_parser
-                .set_keys(instance.generate_keys().await, path)
-                .await;
+            json_parser.set_keys(instance.init_keys().await, path).await;
             self.instances.borrow_mut().push(instance);
         }
     }
