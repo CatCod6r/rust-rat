@@ -9,7 +9,7 @@ pub const USERS_DIRECTORY: &str = "users";
 
 #[tokio::main]
 async fn main() {
-    let connector = ConnectorServer::new("0.0.0.0:4000".to_string());
+    let connector = ConnectorServer::new("localhost:4000".to_string());
     join!(connector.run(), start_cli(&connector));
 }
 async fn start_cli(connector: &ConnectorServer) {

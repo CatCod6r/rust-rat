@@ -9,7 +9,7 @@ use futures_util::{
 };
 use gethostname::gethostname;
 use rsa::{
-    pkcs1::{EncodeRsaPrivateKey, EncodeRsaPublicKey},
+    pkcs1::{DecodeRsaPublicKey, EncodeRsaPrivateKey, EncodeRsaPublicKey},
     pkcs8::DecodePublicKey,
     Pkcs1v15Encrypt, RsaPrivateKey, RsaPublicKey,
 };
@@ -108,10 +108,10 @@ impl Connector {
                 .await
                 .unwrap();
 
-            let mut server_public_key: Vec<u8> = Vec::new();
+            let mut server_public_key = String::new();
             for _ in 0..2 {
                 if let Some(message) = self.read.as_mut().unwrap().next().await {
-                    server_public_key.extend(
+                    server_public_key += std::str::from_utf8(
                         self.private_key
                             .decrypt(
                                 Pkcs1v15Encrypt,
@@ -119,55 +119,21 @@ impl Connector {
                                     .unwrap()
                                     .as_bytes(),
                             )
-                            .unwrap(),
-                    );
+                            .unwrap()
+                            .as_bytes(),
+                    )
+                    .unwrap();
                 }
             }
-            self.public_key = Some(
-                RsaPublicKey::from_public_key_pem(&String::from_utf8_lossy(
-                    server_public_key.as_slice(),
-                ))
-                .unwrap(),
-            );
-            println!(
-                "{}",
-                self.public_key
-                    .clone()
-                    .unwrap()
-                    .to_pkcs1_pem(rsa::pkcs8::LineEnding::LF)
-                    .unwrap()
-            );
+            self.public_key =
+                Some(RsaPublicKey::from_pkcs1_pem(server_public_key.as_str()).unwrap());
+
+            println!("rsa init sequence complete");
             //Generate rsa keys and send them
         }
     }
-    /*
-    pub fn subscribe_for_updates(&self) {
-        let server = TcpListener::bind(SERVER).unwrap();
-        for stream in server.incoming() {
-            let socket_addr_server = self.socket_addr_server.to_string();
-            spawn(move || {
-                use tokio_tungstenite::accept_async
-
-                let mut websocket = accept(stream.unwrap()).unwrap();
-                let mut writing = false;
-                let mut buffer: Vec<u8> = Vec::new();
-                loop {
-                    let msg = websocket.read().unwrap();
-                    if writing {
-                        //file_reciever::recieve_file(msg.clone(), &mut buffer);
-                    }
-                    match msg.to_string().as_str() {
-                        "file_transfer_start" => writing = true,
-                        "picture_request" => {
-                            screenshot_sender::make_screenshot(&socket_addr_server)
-                        }
-                        _ => println!("{}", msg),
-                    }
-                }
-            });
-        }
-    }
-    */
+    pub async fn send_encrypted_data(&self, data: String) {}
+    pub fn subscribe_for_updates(&self) {}
 }
 pub fn generate_private_key() -> RsaPrivateKey {
     let mut rng = rand::thread_rng();

@@ -116,16 +116,12 @@ impl Instance {
             for index in 0..2 {
                 if index == 0 {
                     self.write
-                        .send(Message::from(hex::encode(
-                            std::str::from_utf8(&encrypted_key.0[..]).unwrap(),
-                        )))
+                        .send(Message::from(hex::encode(&encrypted_key.0[..])))
                         .await
                         .unwrap();
                 } else {
                     self.write
-                        .send(Message::from(hex::encode(
-                            std::str::from_utf8(&encrypted_key.1[..]).unwrap(),
-                        )))
+                        .send(Message::from(hex::encode(&encrypted_key.1[..])))
                         .await
                         .unwrap();
                 }
