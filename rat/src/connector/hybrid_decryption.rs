@@ -26,7 +26,7 @@ impl HybridDecryption {
         let aes_key = private_key
             .decrypt(Pkcs1v15Encrypt, self.encrypted_key.as_slice())
             .expect("key decryption failed");
-        // Decrypt file
+        // Decrypt data
         let cipher = Aes256Gcm::new_from_slice(&aes_key).unwrap();
         let nonce = Nonce::from_slice(self.nonce.as_slice());
         let decrypted_data = cipher.decrypt(nonce, self.encrypted_data.as_ref()).unwrap();
