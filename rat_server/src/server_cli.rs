@@ -2,10 +2,7 @@ use std::{collections::HashMap, time::Duration};
 
 use tokio::io::{self, AsyncBufReadExt, BufReader};
 
-use crate::connector_server::{
-    instance::{Instance, FEATURES},
-    ConnectorServer,
-};
+use crate::connector_server::{instance::Instance, ConnectorServer};
 
 pub struct ServerCli<'a> {
     connector: &'a ConnectorServer,
@@ -45,8 +42,10 @@ impl ServerCli<'_> {
                     let chosen_instance = &mut instances[(chosen_number - 1) as usize];
                     println!("What command do you choose?");
                     //rust didnt like the prev version :<
-                    for (index, feature) in FEATURES.iter().enumerate() {
-                        println!("[{}] {}", index + 1, feature);
+                    let features_for_chosen_instance = chosen_instance.get_features();
+
+                    for (index, feature) in features_for_chosen_instance.iter().enumerate() {
+                        println!("[{}] {}", index + 1, feature.get_name());
                     }
 
                     let chosen_command: u32 = loop {
@@ -56,12 +55,13 @@ impl ServerCli<'_> {
                             Err(_) => println!("Invalid input. Please enter a valid number."),
                         }
                     };
+                    let chosen_feature = chosen_instance.get_feature_by_name(
+                        features_for_chosen_instance
+                            .get((chosen_command - 1) as usize)
+                            .unwrap()
+                            .get_name(),
+                    );
                     //im pretty sure ill need smth more than that
-                    chosen_instance
-                        .send_encrypted_message(
-                            FEATURES[(chosen_command - 1) as usize].to_string().as_str(),
-                        )
-                        .await;
                     last_ip = current_ip;
                 }
             }

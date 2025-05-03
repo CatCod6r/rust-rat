@@ -1,10 +1,7 @@
 use aes_gcm::{aead::Aead, Aes256Gcm, KeyInit, Nonce};
 use hex::encode;
 use rand::{rngs::OsRng, RngCore};
-use rsa::{
-    pkcs1::{DecodeRsaPublicKey, EncodeRsaPrivateKey, EncodeRsaPublicKey},
-    Pkcs1v15Encrypt, RsaPrivateKey, RsaPublicKey,
-};
+use rsa::{Pkcs1v15Encrypt, RsaPrivateKey, RsaPublicKey};
 
 pub fn encrypt_data_combined(
     public_key: RsaPublicKey,
@@ -39,12 +36,6 @@ pub fn generate_private_key() -> RsaPrivateKey {
     let mut rng = rand::thread_rng();
     let bits = 2048;
     RsaPrivateKey::new(&mut rng, bits).expect("failed to generate a key")
-}
-pub fn decrypt_data(private_key: RsaPrivateKey, data_to_decrypt: &[u8]) -> String {
-    let decrypted_data = private_key
-        .decrypt(Pkcs1v15Encrypt, data_to_decrypt)
-        .unwrap();
-    String::from_utf8(decrypted_data).unwrap()
 }
 pub struct HybridEncryptionResult {
     encrypted_key: String,

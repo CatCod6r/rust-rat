@@ -16,9 +16,9 @@ use tungstenite::Message;
 
 use crate::USERS_DIRECTORY;
 
+pub mod feature;
 pub mod instance;
 pub mod json_parser;
-
 pub struct ConnectorServer {
     pub socket_address: String,
     pub instances: Rc<RefCell<Vec<Instance>>>,
