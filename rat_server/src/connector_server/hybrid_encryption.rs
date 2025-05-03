@@ -1,4 +1,5 @@
 use aes_gcm::{aead::Aead, Aes256Gcm, KeyInit, Nonce};
+use hex::encode;
 use rand::{rngs::OsRng, RngCore};
 use rsa::{
     pkcs1::{DecodeRsaPublicKey, EncodeRsaPrivateKey, EncodeRsaPublicKey},
@@ -21,12 +22,8 @@ pub fn encrypt_data_combined(
     let cyphertext = cipher.encrypt(nonce, data_to_enc.as_ref()).unwrap();
 
     let encrypted_key = encrypt_data(public_key, &aes_key);
-    let result = HybridEncryptionResult::new(
-        String::from_utf8(encrypted_key).unwrap(),
-        String::from_utf8(nonce.as_slice().to_vec()).unwrap(),
-        String::from_utf8(cyphertext).unwrap(),
-    );
-    result
+
+    HybridEncryptionResult::new(encode(encrypted_key), encode(nonce), encode(cyphertext))
 }
 pub fn encrypt_data(public_key: RsaPublicKey, data_to_enc: &[u8]) -> Vec<u8> {
     //rng for RSA

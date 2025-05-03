@@ -5,12 +5,16 @@ use rsa::{Pkcs1v15Encrypt, RsaPrivateKey};
 use screenshots::image::EncodableLayout;
 
 pub struct HybridDecryption {
-    encrypted_key: String,
-    nonce: String,
-    encrypted_data: String,
+    encrypted_key: Vec<u8>,
+    nonce: Vec<u8>,
+    encrypted_data: Vec<u8>,
 }
 impl HybridDecryption {
-    pub fn new(encrypted_key: String, nonce: String, encrypted_data: String) -> HybridDecryption {
+    pub fn new(
+        encrypted_key: Vec<u8>,
+        nonce: Vec<u8>,
+        encrypted_data: Vec<u8>,
+    ) -> HybridDecryption {
         HybridDecryption {
             encrypted_key,
             nonce,
@@ -20,11 +24,11 @@ impl HybridDecryption {
     pub fn decrypt(&self, private_key: RsaPrivateKey) -> String {
         //Decrypt AES key
         let aes_key = private_key
-            .decrypt(Pkcs1v15Encrypt, self.encrypted_key.as_bytes())
+            .decrypt(Pkcs1v15Encrypt, self.encrypted_key.as_slice())
             .expect("key decryption failed");
         // Decrypt file
         let cipher = Aes256Gcm::new_from_slice(&aes_key).unwrap();
-        let nonce = Nonce::from_slice(self.nonce.as_bytes());
+        let nonce = Nonce::from_slice(self.nonce.as_slice());
         let decrypted_data = cipher.decrypt(nonce, self.encrypted_data.as_ref()).unwrap();
 
         String::from_utf8(decrypted_data).unwrap()

