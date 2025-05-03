@@ -1,4 +1,5 @@
 mod file_reciever;
+mod hybrid_decryption;
 mod screenshot_sender;
 
 use std::{thread, time::Duration};
@@ -8,6 +9,7 @@ use futures_util::{
     SinkExt, StreamExt,
 };
 use gethostname::gethostname;
+use hybrid_decryption::HybridDecryption;
 use rsa::{
     pkcs1::{DecodeRsaPublicKey, EncodeRsaPrivateKey, EncodeRsaPublicKey},
     pkcs8::DecodePublicKey,
@@ -128,25 +130,25 @@ impl Connector {
                 .await
                 .unwrap();
 
-            let mut server_public_key = String::new();
-            for _ in 0..2 {
+            let mut hybrid_decryption_arguments: [String; 3] =
+                ["".to_string(), "".to_string(), "".to_string()];
+            for index in 0..3 {
                 if let Some(message) = self.read.as_mut().unwrap().next().await {
-                    server_public_key += std::str::from_utf8(
-                        self.private_key
-                            .decrypt(
-                                Pkcs1v15Encrypt,
-                                hex::decode(message.unwrap().to_string())
-                                    .unwrap()
-                                    .as_bytes(),
-                            )
-                            .unwrap()
-                            .as_bytes(),
-                    )
-                    .unwrap();
+                    hybrid_decryption_arguments[index] = message.unwrap().to_string();
                 }
             }
-            self.public_key =
-                Some(RsaPublicKey::from_pkcs1_pem(server_public_key.as_str()).unwrap());
+            let hybrid_decryption = HybridDecryption::new(
+                hybrid_decryption_arguments[0].clone(),
+                hybrid_decryption_arguments[1].clone(),
+                hybrid_decryption_arguments[2].clone(),
+            );
+
+            self.public_key = Some(
+                RsaPublicKey::from_pkcs1_pem(
+                    hybrid_decryption.decrypt(self.private_key.clone()).as_str(),
+                )
+                .unwrap(),
+            );
             println!("rsa init sequence complete");
 
             self.subscribe_to_updates().await;

@@ -14,7 +14,7 @@ use rsa::{
 use tokio_tungstenite::WebSocketStream;
 use tungstenite::Message;
 
-use crate::connector_server::hybrid_encryption::generate_private_key;
+use crate::connector_server::hybrid_encryption::{encrypt_data_combined, generate_private_key};
 
 use super::hybrid_encryption::{encrypt_data, HybridEncryptionResult};
 
@@ -124,30 +124,22 @@ impl Instance {
             self.set_private_key(private_key.to_owned());
 
             //Send my public key encrypted by users public key to user and forget about it
-            let encrypted_key = &self.encrypt_my_key(
+            let hybrid_encryption_result = encrypt_data_combined(
+                self.public_key.clone().unwrap(),
                 private_key
                     .to_public_key()
                     .to_pkcs1_pem(rsa::pkcs8::LineEnding::LF)
                     .unwrap()
-                    .as_bytes(),
+                    .into(),
             );
-            //Split encrypted key, encode it in hex and send back
-            self.write
-                .send(Message::from(hex::encode(&encrypted_key[..])))
-                .await
-                .unwrap();
+            self.send_message(hybrid_encryption_result.get_encrypted_key().as_str())
+                .await;
+            self.send_message(hybrid_encryption_result.get_nonce().as_str())
+                .await;
+            self.send_message(hybrid_encryption_result.get_encrypted_data().as_str())
+                .await;
         }
         println!("rsa init sequence with complete");
         (public_key, private_key_string)
-    }
-
-    fn encrypt_my_key(&self, data_to_enc: &[u8]) -> Vec<u8> {
-        let mid = data_to_enc.len() / 2;
-        let mut vec = encrypt_data(self.public_key.clone().unwrap(), &data_to_enc[..mid]);
-        vec.extend(encrypt_data(
-            self.public_key.clone().unwrap(),
-            &data_to_enc[mid..],
-        ));
-        vec
     }
 }

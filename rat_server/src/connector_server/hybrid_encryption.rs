@@ -66,4 +66,13 @@ impl HybridEncryptionResult {
             encrypted_data,
         }
     }
+    pub fn get_encrypted_key(&self) -> String {
+        self.encrypted_key.clone()
+    }
+    pub fn get_nonce(&self) -> String {
+        self.nonce.clone()
+    }
+    pub fn get_encrypted_data(&self) -> String {
+        self.encrypted_data.clone()
+    }
 }
