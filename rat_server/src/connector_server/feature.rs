@@ -1,10 +1,13 @@
-use update::Update;
-
 use super::instance::Instance;
+use once_cell::sync::Lazy;
+use update::Update;
 
 pub mod update;
 
-#[derive(Debug)]
+pub static FEATURES: Lazy<Vec<FeatureEnum>> =
+    Lazy::new(|| vec![FeatureEnum::Update(Update::new())]);
+#[derive(Debug, Clone)]
+
 pub enum FeatureEnum {
     Update(Update),
 }

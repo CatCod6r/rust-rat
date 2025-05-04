@@ -12,10 +12,7 @@ use rsa::{
 use tokio_tungstenite::WebSocketStream;
 use tungstenite::Message;
 
-use super::{
-    feature::{update::Update, FeatureEnum},
-    hybrid_encryption::HybridEncryptionResult,
-};
+use super::hybrid_encryption::HybridEncryptionResult;
 use crate::connector_server::hybrid_encryption::{encrypt_data_combined, generate_private_key};
 #[derive(Debug)]
 #[allow(dead_code)]
@@ -27,7 +24,6 @@ pub struct Instance {
     public_key: Option<RsaPublicKey>,
     private_key: Option<RsaPrivateKey>,
     path: String,
-    features: Vec<FeatureEnum>,
 }
 impl Instance {
     pub fn new(
@@ -45,7 +41,6 @@ impl Instance {
             public_key: None,
             private_key: None,
             path,
-            features: vec![FeatureEnum::Update(Update::new())],
         }
     }
     pub fn init_old(
@@ -65,7 +60,6 @@ impl Instance {
             public_key,
             private_key,
             path,
-            features: vec![FeatureEnum::Update(Update::new())],
         }
     }
     pub fn get_ip(&self) -> IpAddr {
@@ -80,30 +74,17 @@ impl Instance {
     pub fn set_public_key(&mut self, public_key: RsaPublicKey) {
         self.public_key = Some(public_key);
     }
+    pub fn get_public_key(&self) -> RsaPublicKey {
+        self.public_key.clone().unwrap()
+    }
     pub fn set_private_key(&mut self, private_key: RsaPrivateKey) {
         self.private_key = Some(private_key);
     }
     pub async fn send_message(&mut self, message: &str) {
         self.write.send(Message::from(message)).await.unwrap();
     }
-    pub fn get_features(&self) -> &Vec<FeatureEnum> {
-        &self.features
-    }
-    pub fn get_feature_by_name(&self, feature_name: String) -> &FeatureEnum {
-        self.features
-            .iter()
-            .find(|feature| feature.get_name() == feature_name)
-            .unwrap()
-    }
-
-    pub async fn send_encrypted_message(&mut self, message: &str) {
-        let hybrid_encryption_result = encrypt_data_combined(
-            self.public_key.clone().unwrap(),
-            message.as_bytes().to_vec(),
-        );
-        self.send_hybrid_encryption(hybrid_encryption_result).await;
-    }
-    async fn send_hybrid_encryption(&mut self, hybrid_encryption_result: HybridEncryptionResult) {
+    pub async fn send_hybrid_encryption(&mut self, public_key: RsaPublicKey, data_to_enc: Vec<u8>) {
+        let hybrid_encryption_result = encrypt_data_combined(public_key, data_to_enc);
         self.send_message(hybrid_encryption_result.get_encrypted_key().as_str())
             .await;
         self.send_message(hybrid_encryption_result.get_nonce().as_str())
@@ -130,15 +111,15 @@ impl Instance {
             self.set_private_key(private_key.to_owned());
 
             //Send my public key encrypted by users public key to user and forget about it
-            let hybrid_encryption_result = encrypt_data_combined(
+            self.send_hybrid_encryption(
                 self.public_key.clone().unwrap(),
                 private_key
                     .to_public_key()
                     .to_pkcs1_pem(rsa::pkcs8::LineEnding::LF)
                     .unwrap()
                     .into(),
-            );
-            self.send_hybrid_encryption(hybrid_encryption_result).await;
+            )
+            .await;
         }
         println!("rsa init sequence with complete");
         (public_key, private_key_string)

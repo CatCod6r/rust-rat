@@ -1,16 +1,9 @@
-use std::{
-    borrow::{Borrow, BorrowMut},
-    cell::RefCell,
-    collections::HashMap,
-    io::BorrowedBuf,
-    rc::Rc,
-    time::Duration,
-};
+use std::time::Duration;
 
 use tokio::io::{self, AsyncBufReadExt, BufReader};
 
-use crate::connector_server::{instance::Instance, ConnectorServer};
-
+use crate::connector_server::{feature::FEATURES, instance::Instance, ConnectorServer};
+//Remake this whole shi with RataTUI
 pub struct ServerCli<'a> {
     connector: &'a ConnectorServer,
 }
@@ -39,39 +32,28 @@ impl ServerCli<'_> {
                         );
                     }
                     println!("Input the number of user:");
-                    let chosen_number: u32 = loop {
-                        let input = self.handle_user_input().await.trim().to_string();
-                        match input.parse() {
-                            Ok(num) => break num,
-                            Err(_) => println!("Invalid input. Please enter a valid number."),
-                        }
-                    };
+                    let chosen_number: u32 = get_u32_input().await;
                     let chosen_instance = &mut instances[(chosen_number - 1) as usize];
                     println!("What command do you choose?");
                     //rust didnt like the prev version :<
-                    let features_for_chosen_instance = chosen_instance.get_features();
+                    let features = FEATURES.clone();
 
-                    for (index, feature) in features_for_chosen_instance.iter().enumerate() {
+                    for (index, feature) in features.iter().enumerate() {
                         println!("[{}] {}", index + 1, feature.get_name());
                     }
 
-                    let chosen_command: u32 = loop {
-                        let input = self.handle_user_input().await.trim().to_string();
-                        match input.parse() {
-                            Ok(num) => break num,
-                            Err(_) => println!("Invalid input. Please enter a valid number."),
-                        }
-                    };
-                    // Get the feature name immutably first
-                    let chosen_feature = chosen_instance.get_feature_by_name(
-                        features_for_chosen_instance
-                            .get((chosen_command - 1) as usize)
-                            .unwrap()
-                            .get_name(),
-                    );
+                    let chosen_command: u32 = get_u32_input().await;
+                    let name = features
+                        .get((chosen_command - 1) as usize)
+                        .unwrap()
+                        .get_name();
+                    let chosen_feature = features
+                        .iter()
+                        .find(|feature| feature.get_name() == name)
+                        .unwrap();
 
-                    // Now, borrow the chosen_instance mutably
-                    chosen_feature.run();
+                    println!("Chosen feature: {}", chosen_feature.get_name());
+                    chosen_feature.run(chosen_instance).await;
                     //im pretty sure ill need smth more than that
                     last_ip = current_ip;
                 }
@@ -79,11 +61,19 @@ impl ServerCli<'_> {
             tokio::time::sleep(Duration::from_secs(5)).await;
         }
     }
-
-    pub async fn handle_user_input(&self) -> String {
-        let mut input = String::from("");
-        let mut stdin = BufReader::new(io::stdin());
-        stdin.read_line(&mut input).await.unwrap();
-        input
+}
+pub async fn handle_user_input() -> String {
+    let mut input = String::from("");
+    let mut stdin = BufReader::new(io::stdin());
+    stdin.read_line(&mut input).await.unwrap();
+    input
+}
+pub async fn get_u32_input() -> u32 {
+    loop {
+        let input = handle_user_input().await.trim().to_string();
+        match input.parse() {
+            Ok(num) => return num,
+            Err(_) => println!("Invalid input. Please enter a valid number."),
+        }
     }
 }
