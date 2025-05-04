@@ -2,7 +2,6 @@ use core::str;
 use std::net::{IpAddr, SocketAddr};
 
 use futures_util::{
-    future::Lazy,
     stream::{SplitSink, SplitStream},
     SinkExt, StreamExt,
 };
@@ -14,8 +13,8 @@ use tokio_tungstenite::WebSocketStream;
 use tungstenite::Message;
 
 use super::{
-    feature::{self, update::Update, Feature},
-    hybrid_encryption::{encrypt_data, HybridEncryptionResult},
+    feature::{update::Update, FeatureEnum},
+    hybrid_encryption::HybridEncryptionResult,
 };
 use crate::connector_server::hybrid_encryption::{encrypt_data_combined, generate_private_key};
 #[derive(Debug)]
@@ -28,7 +27,7 @@ pub struct Instance {
     public_key: Option<RsaPublicKey>,
     private_key: Option<RsaPrivateKey>,
     path: String,
-    features: Vec<Box<dyn Feature>>,
+    features: Vec<FeatureEnum>,
 }
 impl Instance {
     pub fn new(
@@ -46,7 +45,7 @@ impl Instance {
             public_key: None,
             private_key: None,
             path,
-            features: vec![Box::new(Update::new())],
+            features: vec![FeatureEnum::Update(Update::new())],
         }
     }
     pub fn init_old(
@@ -66,7 +65,7 @@ impl Instance {
             public_key,
             private_key,
             path,
-            features: vec![Box::new(Update::new())],
+            features: vec![FeatureEnum::Update(Update::new())],
         }
     }
     pub fn get_ip(&self) -> IpAddr {
@@ -87,16 +86,16 @@ impl Instance {
     pub async fn send_message(&mut self, message: &str) {
         self.write.send(Message::from(message)).await.unwrap();
     }
-    pub fn get_features(&self) -> &Vec<Box<dyn Feature>> {
+    pub fn get_features(&self) -> &Vec<FeatureEnum> {
         &self.features
     }
-    pub fn get_feature_by_name(&self, feature_name: String) -> &dyn Feature {
+    pub fn get_feature_by_name(&self, feature_name: String) -> &FeatureEnum {
         self.features
             .iter()
             .find(|feature| feature.get_name() == feature_name)
-            .map(|b| b.as_ref())
             .unwrap()
     }
+
     pub async fn send_encrypted_message(&mut self, message: &str) {
         let hybrid_encryption_result = encrypt_data_combined(
             self.public_key.clone().unwrap(),

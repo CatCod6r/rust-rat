@@ -139,13 +139,6 @@ impl Connector {
             self.subscribe_to_updates().await;
         }
     }
-    pub fn decrypt_data(&self, data: &[u8]) -> String {
-        let decrypted_data = self
-            .private_key
-            .decrypt(Pkcs1v15Encrypt, hex::decode(data).unwrap().as_slice())
-            .unwrap();
-        String::from_utf8(decrypted_data).unwrap()
-    }
     pub async fn accept_encrypted_message(&mut self) -> String {
         let mut hybrid_decryption_arguments: [Vec<u8>; 3] = [Vec::new(), Vec::new(), Vec::new()];
         for index in 0..3 {

@@ -1,4 +1,11 @@
-use std::{collections::HashMap, time::Duration};
+use std::{
+    borrow::{Borrow, BorrowMut},
+    cell::RefCell,
+    collections::HashMap,
+    io::BorrowedBuf,
+    rc::Rc,
+    time::Duration,
+};
 
 use tokio::io::{self, AsyncBufReadExt, BufReader};
 
@@ -55,12 +62,16 @@ impl ServerCli<'_> {
                             Err(_) => println!("Invalid input. Please enter a valid number."),
                         }
                     };
+                    // Get the feature name immutably first
                     let chosen_feature = chosen_instance.get_feature_by_name(
                         features_for_chosen_instance
                             .get((chosen_command - 1) as usize)
                             .unwrap()
                             .get_name(),
                     );
+
+                    // Now, borrow the chosen_instance mutably
+                    chosen_feature.run();
                     //im pretty sure ill need smth more than that
                     last_ip = current_ip;
                 }

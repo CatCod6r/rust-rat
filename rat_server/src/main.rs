@@ -10,6 +10,7 @@ pub const USERS_DIRECTORY: &str = "users";
 #[tokio::main]
 async fn main() {
     let connector = ConnectorServer::new("localhost:4000".to_string());
+    //initializing features(yes its silly)
     let mut server_cli = ServerCli::new(&connector);
     join!(connector.run(), server_cli.start_cli());
 }
