@@ -1,24 +1,23 @@
-use std::{cell::RefCell, net::SocketAddr, rc::Rc};
+use std::{cell::RefCell, net::SocketAddr, path::Path, rc::Rc};
 
 use futures_util::{
     stream::{SplitSink, SplitStream},
     StreamExt,
 };
 use instance::Instance;
-use json_parser::JsonParser;
-mod hybrid_crypto;
+mod utils;
 use tokio::{
-    fs::{self, OpenOptions},
+    fs::{self, File},
     net::{TcpListener, TcpStream},
 };
 use tokio_tungstenite::WebSocketStream;
 use tungstenite::Message;
+use utils::json_util::{contains_in_json, save_to_json};
 
-use crate::USERS_DIRECTORY;
+use crate::USERS_PATH;
 
 pub mod feature;
 pub mod instance;
-pub mod json_parser;
 pub struct ConnectorServer {
     pub socket_address: String,
     pub instances: Rc<RefCell<Vec<Instance>>>,
@@ -80,37 +79,30 @@ impl ConnectorServer {
         write: SplitSink<WebSocketStream<tokio::net::TcpStream>, Message>,
         read: SplitStream<WebSocketStream<tokio::net::TcpStream>>,
     ) {
-        let json_parser = JsonParser::new(addr.ip().to_string(), hostname.clone());
-        if let Some(path) = json_parser.contains_in_bd().await {
-            if let Some((public_key, private_key)) = json_parser.get_keys().await {
-                self.instances.borrow_mut().push(Instance::init_old(
-                    addr,
-                    write,
-                    read,
-                    hostname,
-                    Some(public_key),
-                    Some(private_key),
-                    path,
-                ));
-            }
+        let path = match contains_in_json(addr.ip().to_string().as_str(), hostname.as_str()).await {
+            Some(existing_path) => existing_path,
+            None => save_to_json(addr.ip().to_string().as_str(), hostname.as_str()).await,
+        };
+
+        let mut instance = if contains_in_json(addr.ip().to_string().as_str(), hostname.as_str())
+            .await
+            .is_some()
+        {
+            Instance::init_old(addr, write, read, hostname, None, None, path.clone())
         } else {
-            //save it in the json
-            let path = json_parser.save_to_json().await;
-            let mut instance = Instance::new(addr, write, read, hostname, path.clone());
-            //Generate keys and send them to json
-            json_parser.set_keys(instance.init_keys().await, path).await;
-            self.instances.borrow_mut().push(instance);
-        }
+            Instance::new(addr, write, read, hostname, path.clone())
+        };
+
+        instance.init_keys().await;
+        self.instances.borrow_mut().push(instance);
     }
     pub async fn create_path(&self) {
-        let path = format!("{}/users.json", USERS_DIRECTORY);
-        fs::create_dir_all(USERS_DIRECTORY).await.unwrap();
-        OpenOptions::new()
-            .create(true)
-            .write(true)
-            .truncate(true)
-            .open(&path)
-            .await
-            .unwrap();
+        if let Some(parent) = Path::new(USERS_PATH).parent() {
+            // Create the directory and ignore error if it already exists
+            let _ = fs::create_dir_all(parent).await;
+        }
+
+        // Open or create the file
+        let _ = File::create(USERS_PATH).await;
     }
 }

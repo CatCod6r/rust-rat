@@ -5,7 +5,7 @@ use tokio::join;
 mod connector_server;
 mod server_cli;
 
-pub const USERS_DIRECTORY: &str = "users";
+pub const USERS_PATH: &str = "users/users.json";
 
 #[tokio::main]
 async fn main() {

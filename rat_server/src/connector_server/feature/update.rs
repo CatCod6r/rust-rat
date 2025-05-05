@@ -1,7 +1,4 @@
-use tokio::{
-    fs::{self, File},
-    io::AsyncReadExt,
-};
+use tokio::{fs::File, io::AsyncReadExt};
 
 use crate::{connector_server::instance::Instance, server_cli};
 
