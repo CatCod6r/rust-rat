@@ -6,8 +6,8 @@ pub mod update;
 
 pub static FEATURES: Lazy<Vec<FeatureEnum>> =
     Lazy::new(|| vec![FeatureEnum::Update(Update::new())]);
-#[derive(Debug, Clone)]
 
+#[derive(Debug, Clone)]
 pub enum FeatureEnum {
     Update(Update),
 }

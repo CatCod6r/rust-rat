@@ -66,7 +66,8 @@ pub async fn handle_user_input() -> String {
     let mut input = String::from("");
     let mut stdin = BufReader::new(io::stdin());
     stdin.read_line(&mut input).await.unwrap();
-    input
+    //remove /n symbol and spaces1
+    input.trim().to_string()
 }
 pub async fn get_u32_input() -> u32 {
     loop {

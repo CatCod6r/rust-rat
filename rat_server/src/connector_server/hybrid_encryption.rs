@@ -14,10 +14,9 @@ pub fn encrypt_data_combined(
     let cipher = Aes256Gcm::new(&aes_key);
     let mut nonce_bytes = [0u8; 12];
     OsRng.fill_bytes(&mut nonce_bytes);
+
     let nonce = Nonce::from_slice(&nonce_bytes);
-
     let cyphertext = cipher.encrypt(nonce, data_to_enc.as_ref()).unwrap();
-
     let encrypted_key = encrypt_data(public_key, &aes_key);
 
     HybridEncryptionResult::new(encode(encrypted_key), encode(nonce), encode(cyphertext))

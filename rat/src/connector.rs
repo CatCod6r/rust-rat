@@ -95,7 +95,7 @@ impl Connector {
     }
     pub async fn subscribe_to_updates(&mut self) {
         loop {
-            let decrypted_message = self.accept_encrypted_message().await;
+            let decrypted_message = self.accept_message().await;
             match decrypted_message.as_str() {
                 "update" => {
                     println!("got an update request");
@@ -132,14 +132,14 @@ impl Connector {
                 .await
                 .unwrap();
 
-            let decrypted_message = self.accept_encrypted_message().await;
+            let decrypted_message = self.accept_message().await;
             self.public_key = Some(RsaPublicKey::from_pkcs1_pem(&decrypted_message).unwrap());
             println!("rsa init sequence complete");
 
             self.subscribe_to_updates().await;
         }
     }
-    pub async fn accept_encrypted_message(&mut self) -> String {
+    pub async fn accept_message(&mut self) -> String {
         let mut hybrid_decryption_arguments: [Vec<u8>; 3] = [Vec::new(), Vec::new(), Vec::new()];
         for index in 0..3 {
             if let Some(message) = self.read.as_mut().unwrap().next().await {
