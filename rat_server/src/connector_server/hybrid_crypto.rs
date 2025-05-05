@@ -1,10 +1,7 @@
-use std::str::from_utf8;
-
 use aes_gcm::{aead::Aead, Aes256Gcm, KeyInit, Nonce};
 use hex::encode;
 use rand::{rngs::OsRng, RngCore};
 use rsa::{Pkcs1v15Encrypt, RsaPrivateKey, RsaPublicKey};
-use screenshots::image::EncodableLayout;
 
 //Decryption
 pub struct HybridDecryption {
@@ -27,11 +24,11 @@ impl HybridDecryption {
     pub fn decrypt(&self, private_key: RsaPrivateKey) -> Vec<u8> {
         //Decrypt AES key
         let aes_key = private_key
-            .decrypt(Pkcs1v15Encrypt, self.encrypted_key.as_bytes())
+            .decrypt(Pkcs1v15Encrypt, &self.encrypted_key)
             .expect("key decryption failed");
         // Decrypt file
         let cipher = Aes256Gcm::new_from_slice(&aes_key).unwrap();
-        let nonce = Nonce::from_slice(self.nonce.as_bytes());
+        let nonce = Nonce::from_slice(&self.nonce);
         let decrypted_data = cipher.decrypt(nonce, self.encrypted_data.as_ref()).unwrap();
         decrypted_data
     }

