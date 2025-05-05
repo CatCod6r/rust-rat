@@ -21,7 +21,7 @@ impl HybridDecryption {
             encrypted_data,
         }
     }
-    pub fn decrypt(&self, private_key: RsaPrivateKey) -> String {
+    pub fn decrypt(&self, private_key: RsaPrivateKey) -> Vec<u8> {
         //Decrypt AES key
         let aes_key = private_key
             .decrypt(Pkcs1v15Encrypt, self.encrypted_key.as_slice())
@@ -30,7 +30,12 @@ impl HybridDecryption {
         let cipher = Aes256Gcm::new_from_slice(&aes_key).unwrap();
         let nonce = Nonce::from_slice(self.nonce.as_slice());
         let decrypted_data = cipher.decrypt(nonce, self.encrypted_data.as_ref()).unwrap();
-
-        String::from_utf8(decrypted_data).unwrap()
+        decrypted_data
     }
+}
+
+pub fn generate_private_key() -> RsaPrivateKey {
+    let mut rng = rand::thread_rng();
+    let bits = 2048;
+    RsaPrivateKey::new(&mut rng, bits).expect("failed to generate a key")
 }

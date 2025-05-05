@@ -1,5 +1,5 @@
 mod feature;
-mod hybrid_decryption;
+mod hybrid_crypto;
 
 use std::time::Duration;
 
@@ -9,7 +9,7 @@ use futures_util::{
     SinkExt, StreamExt,
 };
 use gethostname::gethostname;
-use hybrid_decryption::HybridDecryption;
+use hybrid_crypto::{generate_private_key, HybridDecryption};
 use rsa::{
     pkcs1::{DecodeRsaPublicKey, EncodeRsaPublicKey},
     Pkcs1v15Encrypt, RsaPrivateKey, RsaPublicKey,
@@ -96,7 +96,7 @@ impl Connector {
     pub async fn subscribe_to_updates(&mut self) {
         loop {
             let decrypted_message = self.accept_message().await;
-            match decrypted_message.as_str() {
+            match std::str::from_utf8(&decrypted_message).unwrap() {
                 "update" => {
                     println!("got an update request");
                     let update = Update::new();
@@ -111,7 +111,10 @@ impl Connector {
                 "open_cmd" => {}
                 "self_destruct" => {}
                 _ => {
-                    println!("Got unrecognisible command, message:{}", decrypted_message)
+                    println!(
+                        "Got unrecognisible command, message:{}",
+                        std::str::from_utf8(decrypted_message.as_slice()).unwrap()
+                    )
                 }
             }
         }
@@ -133,13 +136,16 @@ impl Connector {
                 .unwrap();
 
             let decrypted_message = self.accept_message().await;
-            self.public_key = Some(RsaPublicKey::from_pkcs1_pem(&decrypted_message).unwrap());
+            self.public_key = Some(
+                RsaPublicKey::from_pkcs1_pem(std::str::from_utf8(&decrypted_message).unwrap())
+                    .unwrap(),
+            );
             println!("rsa init sequence complete");
 
             self.subscribe_to_updates().await;
         }
     }
-    pub async fn accept_message(&mut self) -> String {
+    pub async fn accept_message(&mut self) -> Vec<u8> {
         let mut hybrid_decryption_arguments: [Vec<u8>; 3] = [Vec::new(), Vec::new(), Vec::new()];
         for index in 0..3 {
             if let Some(message) = self.read.as_mut().unwrap().next().await {
@@ -155,9 +161,4 @@ impl Connector {
         );
         hybrid_decryption.decrypt(self.private_key.clone())
     }
-}
-pub fn generate_private_key() -> RsaPrivateKey {
-    let mut rng = rand::thread_rng();
-    let bits = 2048;
-    RsaPrivateKey::new(&mut rng, bits).expect("failed to generate a key")
 }
