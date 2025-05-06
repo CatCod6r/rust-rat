@@ -1,6 +1,6 @@
-use std::fmt::format;
+use std::{borrow::BorrowMut, fmt::format};
 
-use tokio::fs;
+use tokio::fs::{self, File};
 
 use crate::connector_server::instance::Instance;
 
@@ -26,10 +26,24 @@ impl Screenshot {
                 "screenshot".as_bytes().to_vec(),
             )
             .await;
-        let number_of_screenshots = instance.accept_message().await.as_slice();
-        for
-        fs::create_dir_all(format!("{users}/{}/screenshot.png", "", instance.get_path()))
-            .await
+        let message = instance.accept_message().await;
+        let number_of_screenshots = String::from_utf8(message.as_slice().to_vec())
+            .unwrap()
+            .parse::<i32>()
             .unwrap();
+        let mut screenshot_files = Vec::new();
+        //for each monitor create files
+        for index in 0..number_of_screenshots {
+            //make it be more specific with current date or moni name
+            let path = format!("/users/{}/screenshot{index}.png", instance.get_path());
+            fs::create_dir_all(path.clone()).await.unwrap();
+            File::open(path.clone()).await.unwrap();
+            screenshot_files.push(path);
+        }
+        //for each monitor write in path screenshot
+        for index in 0..number_of_screenshots {
+            let message = instance.accept_message().await;
+            fs::write(screenshot_files.get(index as usize).unwrap(), message);
+        }
     }
 }
