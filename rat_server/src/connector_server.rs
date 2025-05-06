@@ -18,6 +18,11 @@ use crate::USERS_PATH;
 
 pub mod feature;
 pub mod instance;
+
+pub type WsStream = WebSocketStream<TcpStream>;
+pub type WsWrite = SplitSink<WsStream, Message>;
+pub type WsRead = SplitStream<WsStream>;
+
 pub struct ConnectorServer {
     pub socket_address: String,
     pub instances: Rc<RefCell<Vec<Instance>>>,
@@ -76,8 +81,8 @@ impl ConnectorServer {
         &self,
         addr: SocketAddr,
         hostname: String,
-        write: SplitSink<WebSocketStream<tokio::net::TcpStream>, Message>,
-        read: SplitStream<WebSocketStream<tokio::net::TcpStream>>,
+        write: WsWrite,
+        read: WsRead,
     ) {
         let path = match contains_in_json(addr.ip().to_string().as_str(), hostname.as_str()).await {
             Some(existing_path) => existing_path,

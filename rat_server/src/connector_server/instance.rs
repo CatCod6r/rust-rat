@@ -9,29 +9,34 @@ use rsa::{
     pkcs1::{DecodeRsaPublicKey, EncodeRsaPublicKey},
     RsaPrivateKey, RsaPublicKey,
 };
+use tokio::net::TcpStream;
 use tokio_tungstenite::WebSocketStream;
 use tungstenite::Message;
 
 use crate::connector_server::utils::hybrid_crypto_util::generate_private_key;
 
-use super::utils::hybrid_crypto_util::{encrypt_data_combined, HybridDecryption};
-
+use super::{
+    utils::hybrid_crypto_util::{encrypt_data_combined, HybridDecryption},
+    WsRead, WsWrite,
+};
+// type aliases for readability
 #[derive(Debug)]
 #[allow(dead_code)]
 pub struct Instance {
     ip: IpAddr,
-    write: SplitSink<WebSocketStream<tokio::net::TcpStream>, Message>,
-    read: SplitStream<WebSocketStream<tokio::net::TcpStream>>,
+    write: WsWrite,
+    read: WsRead,
     hostname: String,
     public_key: Option<RsaPublicKey>,
     private_key: Option<RsaPrivateKey>,
     path: String,
 }
+
 impl Instance {
     pub fn new(
         addr: SocketAddr,
-        write: SplitSink<WebSocketStream<tokio::net::TcpStream>, Message>,
-        read: SplitStream<WebSocketStream<tokio::net::TcpStream>>,
+        write: WsWrite,
+        read: WsRead,
         hostname: String,
         path: String,
     ) -> Instance {
@@ -45,10 +50,11 @@ impl Instance {
             path,
         }
     }
+
     pub fn init_old(
         addr: SocketAddr,
-        write: SplitSink<WebSocketStream<tokio::net::TcpStream>, Message>,
-        read: SplitStream<WebSocketStream<tokio::net::TcpStream>>,
+        write: WsWrite,
+        read: WsRead,
         hostname: String,
         public_key: Option<RsaPublicKey>,
         private_key: Option<RsaPrivateKey>,

