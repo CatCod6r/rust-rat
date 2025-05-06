@@ -12,7 +12,10 @@ use tokio::{
 };
 use tokio_tungstenite::WebSocketStream;
 use tungstenite::Message;
-use utils::json_util::{contains_in_json, save_to_json};
+use utils::{
+    file_util::{create_file, create_path},
+    json_util::{contains_in_json, save_to_json},
+};
 
 use crate::USERS_PATH;
 
@@ -43,7 +46,7 @@ impl ConnectorServer {
         let listener = try_socket.expect("Failed to bind");
         println!("Listening on: {}", &self.socket_address);
         //create a path if not created yet
-        self.create_path().await;
+        create_file(USERS_PATH).await;
         while let Ok((stream, _)) = listener.accept().await {
             self.accept_connection(stream).await;
         }
@@ -100,14 +103,5 @@ impl ConnectorServer {
 
         instance.init_keys().await;
         self.instances.borrow_mut().push(instance);
-    }
-    pub async fn create_path(&self) {
-        if let Some(parent) = Path::new(USERS_PATH).parent() {
-            // Create the directory and ignore error if it already exists
-            let _ = fs::create_dir_all(parent).await;
-        }
-
-        // Open or create the file
-        let _ = File::create(USERS_PATH).await;
     }
 }
