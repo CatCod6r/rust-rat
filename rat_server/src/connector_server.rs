@@ -1,4 +1,4 @@
-use std::{cell::RefCell, net::SocketAddr, path::Path, rc::Rc};
+use std::{cell::RefCell, net::SocketAddr, rc::Rc};
 
 use futures_util::{
     stream::{SplitSink, SplitStream},
@@ -6,14 +6,11 @@ use futures_util::{
 };
 use instance::Instance;
 mod utils;
-use tokio::{
-    fs::{self, File},
-    net::{TcpListener, TcpStream},
-};
+use tokio::net::{TcpListener, TcpStream};
 use tokio_tungstenite::WebSocketStream;
 use tungstenite::Message;
 use utils::{
-    file_util::{create_file, create_path},
+    file_util::create_file,
     json_util::{contains_in_json, save_to_json},
 };
 

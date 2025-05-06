@@ -1,10 +1,8 @@
-use std::str::from_utf8;
-
 use aes_gcm::{aead::Aead, Aes256Gcm, KeyInit, Nonce};
 use hex::encode;
 use rand::{rngs::OsRng, RngCore};
 use rsa::{Pkcs1v15Encrypt, RsaPrivateKey, RsaPublicKey};
-use screenshots::image::EncodableLayout;
+use xcap::image::EncodableLayout;
 
 //Decryption
 pub struct HybridDecryption {

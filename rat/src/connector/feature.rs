@@ -1,4 +1,4 @@
-use once_cell::unsync::Lazy;
+use once_cell::sync::Lazy;
 use screenshot_sender::Screenshot;
 use update::Update;
 
@@ -35,10 +35,13 @@ impl FeatureEnum {
         }
     }
 }
-pub fn find_feature_by_command(command: &str) -> Option<FeatureEnum> {
-    for feature in FEATURES {
+pub async fn find_feature_by_command(
+    command: &str,
+    connector: &mut Connector,
+) -> Option<FeatureEnum> {
+    for feature in FEATURES.iter() {
         if command == feature.get_command() {
-            feature
+            feature.run(connector).await;
         }
     }
     None

