@@ -5,3 +5,35 @@
 
 > 🚨 **Disclaimer**: This project is intended solely for educational use and **must not** be used for unauthorized access or malicious purposes. Use responsibly and within the bounds of the law.
 
+# Features
+
+End-to-End Encryption: Secure communication between client and server using AES + RSA. :white_check_mark: 
+
+File Transfer: Upload and download files between server and client. :white_check_mark: 
+
+Screen Capture: Grab screenshots of the client’s desktop. :white_check_mark: 
+
+Remote Shell: Execute shell commands on the client machine and receive the output. 🔴
+
+Process Management: List, kill, and spawn processes remotely. 🔴
+
+Keylogging: Capture keystrokes. 🔴
+
+Cross-Platform: Works on Windows, Linux(currently only rat client). 🔴
+
+RataTUI cli interface 🔴
+
+Note: Feature set may expand as the project evolves. Check the source code for the latest commands supported. 
+
+# Architecture
+
+RustRAT follows a classic client-server model:
+
+Server (**rat_server**) listens on a configurable port for incoming connections.
+
+Client (**rat**) connects back to the server, establishing a secure, encrypted channel.
+
+**Server cli** accepts commands and dispatches them to the client.
+
+Asynchronous Rust (**tokio**) powers non-blocking I/O for scalability and performance.
+
