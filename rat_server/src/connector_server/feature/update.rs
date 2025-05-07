@@ -57,7 +57,7 @@ impl Update {
             std::str::from_utf8(instance.accept_message().await.as_slice()).unwrap()
         );
     }
-    //Make this actualkly return error instead of option
+    //Make this actually return error instead of option
     pub async fn open_file_as_bytes(&self, path: &str) -> Option<Vec<u8>> {
         if let Ok(mut file) = File::open(path).await {
             let mut plaintext = Vec::new();

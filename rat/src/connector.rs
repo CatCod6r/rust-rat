@@ -178,7 +178,7 @@ impl Connector {
                     Err(error) => {
                         //Reconnect to the server if connection is reset
                         println!("Lost connection with server: {}", error);
-                        Box::pin(self.search_for_c2()).await;
+                        //Box::pin(self.search_for_c2()).await;
                         return vec![];
                     }
                 };

@@ -39,7 +39,7 @@ impl Screenshot {
             let formatted_local = local.format("%Y-%m-%d %H:%M:%S").to_string();
             //make it be more specific with moni name
             let path = format!(
-                "/users/screenshots/{}/screenshot{index}{formatted_local}.png",
+                "users/screenshots/{}/screenshot{index}{formatted_local}.png",
                 instance.get_path()
             );
             create_file(path.as_str()).await;

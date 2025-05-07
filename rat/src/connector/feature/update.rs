@@ -13,7 +13,7 @@ impl Update {
         }
     }
     pub fn get_command(&self) -> String {
-        "update".to_string()
+        self.name.to_string()
     }
     pub async fn run(&self, connector: &mut Connector) {
         let path_to_program = String::from("rat");
