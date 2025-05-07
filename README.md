@@ -23,7 +23,7 @@ Cross-Platform: Works on Windows, Linux(currently only rat client). 🔴
 
 RataTUI cli interface 🔴
 
-Note: Feature set may expand as the project evolves. Check the source code for the latest commands supported. 
+> **Note**: Feature set may expand as the project evolves. Check the source code for the latest commands supported. 
 
 # Architecture
 
